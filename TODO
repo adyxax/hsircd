@@ -1,6 +1,6 @@
 I- ircd-0.1:
 ------------
-  * Dyre stuff for config file compilation
+  * hslogger
   * Basic server (without bothering about the protocol)
   * SSL support
   * Basic protocol implementation : Channels and users

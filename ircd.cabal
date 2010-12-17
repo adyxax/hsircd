@@ -1,0 +1,31 @@
+Name:               hsircd
+Version:            0.0.1
+Cabal-version:      >=1.2
+Synopsis:           An IRC server
+Description:
+  hsircd is an irc server written in haskell.
+Homepage:           http://hsircd.adyxax.org/
+License:            BSD3
+License-file:       LICENSE
+Author:             Julien Dessaux
+Maintainer:         judessaux@gmail.com
+Copyright:          Copyright (c) 2010 Julien Dessaux
+Category:           Network
+Build-type:         Simple
+
+
+Library
+  ghc-options: -Wall
+  exposed-modules:  Ircd
+                    Ircd.Config
+  Build-depends:    base >= 4.1 && < 5,
+                    dyre,
+                    network
+
+
+Executable hsircd
+  Main-is:          Main.hs
+  Ghc-options:      -Wall
+  Extensions:       FlexibleContexts
+  Build-depends:    base >= 4.1 && < 5
+
