@@ -1,7 +1,8 @@
 I- ircd-0.1:
 ------------
-  * hslogger
-  * Basic server (without bothering about the protocol)
   * SSL support
+  * Basic connection handling
+  * Handle signals
+  * hslogger
   * Basic protocol implementation : Channels and users
 
