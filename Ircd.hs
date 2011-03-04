@@ -4,10 +4,11 @@ module Ircd
 
 import qualified Config.Dyre as Dyre
 import Config.Dyre.Relaunch
-import Control.Monad.State
+import Control.Monad.Reader
 
 import Ircd.Config
 import Ircd.Core
+import Ircd.Types
 
 startIrcd :: Config -> IO ()
 startIrcd config = do
@@ -18,19 +19,17 @@ startIrcd config = do
     -- initialization
     ircdEnv <- initIrcd config
     -- main stuff
-    (status, _) <- runStateT runIrcd ircdEnv
-    -- closing sockets
-    evalStateT terminateIrcd ircdEnv
+    status <- runReaderT runIrcd ircdEnv
     -- Handling exit signal
     case status of
-         IrcdExit -> return ()
-         IrcdReload -> relaunchMaster Nothing -- TODO relaunchWithTextState (state { stateConfig = config }) Nothing
-         IrcdRestart -> relaunchMaster Nothing
+         IrcdContinue -> startIrcd config
+         IrcdExit -> runReaderT terminateIrcd ircdEnv
+         IrcdReload -> relaunchMaster Nothing -- TODO relaunchWithTextState (state { stateConfig = config }) Nothing, add a flag that prevent spawning the sockets again
+         IrcdRestart -> relaunchMaster Nothing -- TODO relaunch and kill sockets
 
 ircd :: Config -> IO ()
 ircd = Dyre.wrapMain $ Dyre.defaultParams
     { Dyre.projectName = "hsircd"
     , Dyre.realMain    = startIrcd
-    , Dyre.showError   = (\config err -> config { configErrors = Just err })
-    }
+    , Dyre.showError   = (\config err -> config { configErrors = Just err }) }
 
