@@ -3,6 +3,5 @@ I- ircd-0.1:
   * SSL support
   * Basic connection handling
   * Handle signals
-  * hslogger
   * Basic protocol implementation : Channels and users
 

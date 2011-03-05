@@ -13,7 +13,7 @@ import Control.Monad.State
 import Network.Socket
 import System.IO
 
-data IrcdStatus = IrcdContinue | IrcdExit | IrcdReload | IrcdRestart
+data IrcdStatus = IrcdContinue | IrcdExit | IrcdReload | IrcdRestart deriving (Show)
 
 type Ircd = ReaderT IrcdEnv
 

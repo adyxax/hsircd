@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -XScopedTypeVariables #-}
 module Ircd.Client
     ( handleClientRequests
     ) where
@@ -8,6 +9,7 @@ import Control.Monad.Reader
 import Control.Monad.State
 import Prelude hiding (catch)
 import System.IO
+import System.Log.Logger
 
 import Ircd.Types
 import Ircd.Utils
@@ -16,20 +18,24 @@ handleClientRequests :: ClientState -> Ircd IO ()
 handleClientRequests clientState = do
     let connhdl = clientHandle clientState
         chan    = clientChan clientState
+        addr    = clientAddr clientState
     myOwnThreadId  <- liftIO $ myThreadId
+    liftIO $ infoM "Ircd.Client" $ "Client connected " ++ (show addr)
     -- We spawn the socket's reader
     readerThreadId <- liftIO $ forkIO $ clientReader connhdl chan myOwnThreadId
-    (status, clientState') <- clientLoop clientState
+    (status, _) <- clientLoop clientState
     -- Finally we terminate properly   TODO : have a way to check if we are reloading
     liftIO $ killThread readerThreadId
     liftIO $ hClose connhdl
     (liftIO $ myThreadId) >>= delThreadIdFromQuitMVar
+    liftIO $ infoM "Ircd.Client" $ "Client disconnected " ++ (show addr) ++ " with status " ++ (show status)
     return ()
 
 -- | Runs the IrcBot's reader loop
 clientReader :: Handle -> Chan Message -> ThreadId -> IO ()
 clientReader handle chan fatherThreadId = forever $ do
     str <- (hGetLine handle) `catch` handleIOException
+    liftIO $ debugM "Ircd.Client" $ "<-- " ++ str
     -- TODO : check if it's a valid IRC message
     writeChan chan $ Message Nothing str
   where
@@ -57,6 +63,7 @@ clientCore = do
     -- For now we simply send the make the exchanges between the client and the core
     case msgSender msg of
         Just sender -> do
+            liftIO $ debugM "Ircd.Client" $ "--> " ++ (msgContent msg)
             handle <- gets clientHandle
             lift . liftIO $ hPutStrLn handle (msgContent msg)
         Nothing -> do

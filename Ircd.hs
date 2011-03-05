@@ -5,6 +5,7 @@ module Ircd
 import qualified Config.Dyre as Dyre
 import Config.Dyre.Relaunch
 import Control.Monad.Reader
+import System.Log.Logger
 
 import Ircd.Config
 import Ircd.Core
@@ -19,7 +20,9 @@ startIrcd config = do
     -- initialization
     ircdEnv <- initIrcd config
     -- main stuff
+    infoM "Ircd" "Server starting"
     status <- runReaderT runIrcd ircdEnv
+    infoM "Ircd" $ "Server exited with status " ++ (show status)
     -- Handling exit signal
     case status of
          IrcdContinue -> startIrcd config

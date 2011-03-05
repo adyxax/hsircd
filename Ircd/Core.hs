@@ -8,6 +8,7 @@ import Control.Concurrent
 import Control.Monad.Reader
 import Network.Socket
 import System.IO
+import System.Log.Logger
 
 import Ircd.Client
 import Ircd.Config
@@ -27,6 +28,7 @@ initIrcd config = do
   where
     initSocket :: Listen -> IO (Socket)
     initSocket (Listen hostname port) = do
+        liftIO $ infoM "Ircd.Core" $ "Listening on " ++ hostname ++ ":" ++ port
         addrinfos <- getAddrInfo Nothing (Just hostname) (Just port)
         let serveraddr = head addrinfos
         mySocket <- socket (addrFamily serveraddr) Stream defaultProtocol
@@ -83,6 +85,7 @@ runIrcd = do
 
 terminateIrcd :: Ircd IO ()
 terminateIrcd = do
+    liftIO $ infoM "Ircd.Core" "Closing sockets"
     sockets <- asks envSockets
     liftIO $ mapM_ (flip shutdown ShutdownBoth) sockets
     liftIO $ mapM_ sClose sockets
