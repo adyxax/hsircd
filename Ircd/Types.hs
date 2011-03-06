@@ -10,6 +10,7 @@ module Ircd.Types
 import Control.Concurrent
 import Control.Monad.Reader
 import Control.Monad.State
+import qualified Network.IRC as IRC
 import Network.Socket
 import System.IO
 
@@ -33,8 +34,7 @@ data ClientState = ClientState
     , clientAddr   :: SockAddr
     }
 
-data Message = Message
-    { msgSender  :: Maybe ClientState
-    , msgContent :: String
-    }
+data Message = ClientMsg ClientState IRC.Message
+             | IrcMsg IRC.Message
+             | ServerMsg IRC.Message
 

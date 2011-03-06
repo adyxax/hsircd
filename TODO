@@ -1,7 +1,6 @@
 I- ircd-0.1:
 ------------
   * SSL support
-  * Basic connection handling
   * Handle signals
   * Basic protocol implementation : Channels and users
 

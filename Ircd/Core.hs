@@ -75,13 +75,10 @@ runIrcd = do
     ircdCore = do
         chan <- asks envChan
         msg <- liftIO $ readChan chan
-        -- for now we just send back their messages to the clients unless it's quit
-        case msgSender msg of
-            Just sender ->
-                case msgContent msg of
-                    "quit" -> setGlobalQuitMVar IrcdExit
-                    _      -> liftIO $ writeChan (clientChan sender) $ Message (Just sender) (msgContent msg)
-            Nothing -> return ()
+        case msg of
+            IrcMsg _ -> return ()
+            ServerMsg _ -> return ()
+            ClientMsg _ _ -> return ()
 
 terminateIrcd :: Ircd IO ()
 terminateIrcd = do
