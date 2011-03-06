@@ -12,6 +12,7 @@ import Control.Monad.Reader
 import Control.Monad.State
 import qualified Network.IRC as IRC
 import Network.Socket
+import Network.TLS.Server
 import System.IO
 
 data IrcdStatus = IrcdContinue | IrcdExit | IrcdReload | IrcdRestart deriving (Show)
@@ -23,6 +24,7 @@ data IrcdEnv = IrcdEnv
     , envChan        :: Chan Message
     , envQuitMv      :: MVar (IrcdStatus)
     , envThreadIdsMv :: MVar [ThreadId]
+    , envTLS         :: Maybe TLSServerParams
     }
 
 type Client = StateT ClientState

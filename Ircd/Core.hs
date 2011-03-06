@@ -7,6 +7,7 @@ module Ircd.Core
 import Control.Concurrent
 import Control.Monad.Reader
 import Network.Socket
+import Network.TLS.Server hiding (listen)
 import System.IO
 import System.Log.Logger
 
@@ -18,13 +19,17 @@ import Ircd.Utils
 initIrcd :: Config -> IO (IrcdEnv)
 initIrcd config = do
     mySockets <- mapM initSocket $ configListen config
+    tls <- case sslOn $ configSSL config of
+        True  -> initTLSEnv >>= return . Just
+        False -> return Nothing
     chan <- newChan :: IO (Chan Message)
     threadIdsMv <- newMVar []
     quitMv <- newEmptyMVar
     return IrcdEnv { envSockets     = mySockets
                    , envChan        = chan
                    , envQuitMv      = quitMv
-                   , envThreadIdsMv = threadIdsMv }
+                   , envThreadIdsMv = threadIdsMv
+                   , envTLS         = tls }
   where
     initSocket :: Listen -> IO (Socket)
     initSocket (Listen hostname port) = do
@@ -36,6 +41,22 @@ initIrcd config = do
         bindSocket mySocket (addrAddress serveraddr)
         listen mySocket 10
         return mySocket
+    initTLSEnv :: IO (TLSServerParams)
+    initTLSEnv = do
+        let ssl = configSSL config
+            certFile = sslCert ssl
+            versions = sslVersions ssl
+            ciphers  = sslCiphers ssl
+            verify   = sslVerify ssl
+        (certdata, cert)   <- readCertificate certFile
+        pk                 <- readPrivateKey "host.key"
+        let spCert = (certdata, cert, snd pk)
+        return $ TLSServerParams { spAllowedVersions = versions
+                                 , spSessions = []
+                                 , spCiphers = ciphers
+                                 , spCertificate = Just spCert
+                                 , spWantClientCert = verify
+                                 , spCallbacks = TLSServerCallbacks { cbCertificates = Nothing } }
 
 runIrcd :: Ircd IO (IrcdStatus)
 runIrcd = do

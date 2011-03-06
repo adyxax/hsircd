@@ -1,5 +1,5 @@
 Name:               hsircd
-Version:            0.0.4
+Version:            0.0.5
 Cabal-version:      >=1.2
 Synopsis:           An IRC server
 Description:
@@ -20,11 +20,14 @@ Library
                     Ircd.Config
   Extensions:       DeriveDataTypeable FlexibleContexts ScopedTypeVariables
   Build-depends:    base >= 4.1 && < 5,
+                    bytestring,
+                    certificate,
                     dyre,
                     hslogger,
                     irc,
                     mtl,
-                    network
+                    network,
+                    tls
 
 
 Executable hsircd
