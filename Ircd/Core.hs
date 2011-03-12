@@ -7,7 +7,7 @@ module Ircd.Core
 import Control.Concurrent
 import Control.Monad.Reader
 import Network.Socket
-import Network.TLS.Server hiding (listen)
+import Network.TLS
 import System.IO
 import System.Log.Logger
 
@@ -41,22 +41,21 @@ initIrcd config = do
         bindSocket mySocket (addrAddress serveraddr)
         listen mySocket 10
         return mySocket
-    initTLSEnv :: IO (TLSServerParams)
+    initTLSEnv :: IO (TLSParams)
     initTLSEnv = do
         let ssl = configSSL config
             certFile = sslCert ssl
+            keyFile  = sslKey ssl
             versions = sslVersions ssl
             ciphers  = sslCiphers ssl
             verify   = sslVerify ssl
-        (certdata, cert)   <- readCertificate certFile
-        pk                 <- readPrivateKey "host.key"
-        let spCert = (certdata, cert, snd pk)
-        return $ TLSServerParams { spAllowedVersions = versions
-                                 , spSessions = []
-                                 , spCiphers = ciphers
-                                 , spCertificate = Just spCert
-                                 , spWantClientCert = verify
-                                 , spCallbacks = TLSServerCallbacks { cbCertificates = Nothing } }
+        cert <- readCertificate certFile
+        pk   <- readPrivateKey keyFile
+        return $ defaultParams { pConnectVersion = TLS12
+                               , pAllowedVersions = versions
+                               , pCiphers = ciphers
+                               , pWantClientCert = verify
+                               , pCertificates = [(cert, Just pk)] }
 
 runIrcd :: Ircd IO (IrcdStatus)
 runIrcd = do
@@ -86,11 +85,20 @@ runIrcd = do
         liftIO $ hSetBuffering connhdl LineBuffering
         liftIO $ hSetEncoding connhdl utf8
         chan <- liftIO (newChan :: IO (Chan Message))
-        let client = ClientState { clientHandle = connhdl
-                                 , clientChan   = chan
-                                 , clientSocket = connsock
-                                 , clientAddr   = clientaddr }
-        liftIO (forkIO $ runReaderT (handleClientRequests client) env) >>= addThreadIdToQuitMVar
+        -- Are we using
+        ctx <- case envTLS env of
+            Just params -> do
+                randomGen <- liftIO $ makeSRandomGen >>= either (fail . show) (return . id)
+                sCtx <- server params randomGen connhdl
+                handshake sCtx
+                return $ Just sCtx
+            Nothing  -> return Nothing
+        let theClient = ClientState { clientHandle = connhdl
+                                    , clientChan   = chan
+                                    , clientSocket = connsock
+                                    , clientAddr   = clientaddr
+                                    , clientTLSCtx = ctx }
+        liftIO (forkIO $ runReaderT (handleClientRequests theClient) env) >>= addThreadIdToQuitMVar
 
     ircdCore :: Ircd IO ()
     ircdCore = do

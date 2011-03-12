@@ -8,8 +8,7 @@ module Ircd.Config
     , noSSL
     ) where
 
-import Network.TLS.Cipher
-import Network.TLS.Struct
+import Network.TLS
 
 data Config = Config
     { configListen :: [Listen]
@@ -36,8 +35,8 @@ data SSLParams = SSLParams
     { sslOn       :: Bool
     , sslCert     :: String
     , sslKey      :: String
-    , sslVersions :: [Network.TLS.Struct.Version]
-    , sslCiphers  :: [Network.TLS.Cipher.Cipher]
+    , sslVersions :: [Network.TLS.Version]
+    , sslCiphers  :: [Network.TLS.Cipher]
     , sslVerify   :: Bool
     } deriving (Show)
 
@@ -52,7 +51,10 @@ defaultSSLParams = SSLParams
                     , cipher_AES128_SHA1
                     , cipher_AES256_SHA1
                     , cipher_RC4_128_MD5
-                    , cipher_RC4_128_SHA1 ]
+                    , cipher_RC4_128_SHA1
+                    , cipher_AES256_SHA1
+                    , cipher_AES128_SHA256
+                    , cipher_AES256_SHA256 ]
     , sslVerify   = True }
 
 noSSL :: SSLParams
