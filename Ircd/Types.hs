@@ -1,6 +1,5 @@
 module Ircd.Types
-    ( Client
-    , ClientState (..)
+    ( ClientEnv (..)
     , Ircd
     , IrcdEnv (..)
     , IrcdStatus (..)
@@ -9,7 +8,6 @@ module Ircd.Types
 
 import Control.Concurrent
 import Control.Monad.Reader
-import Control.Monad.State
 import qualified Network.IRC as IRC
 import Network.Socket
 import Network.TLS
@@ -27,9 +25,7 @@ data IrcdEnv = IrcdEnv
     , envTLS         :: Maybe TLSParams
     }
 
-type Client = StateT ClientState
-
-data ClientState = ClientState
+data ClientEnv = ClientEnv
     { clientHandle :: Handle
     , clientChan   :: Chan Message
     , clientSocket :: Socket
@@ -37,7 +33,7 @@ data ClientState = ClientState
     , clientTLSCtx :: Maybe TLSCtx
     }
 
-data Message = ClientMsg ClientState IRC.Message
+data Message = ClientMsg ClientEnv IRC.Message
              | IrcMsg IRC.Message
-             | ServerMsg IRC.Message
+             | OutgoingMsg IRC.Message
 
