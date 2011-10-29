@@ -25,10 +25,9 @@ startIrcd config = do
     infoM "Ircd" $ "Server exited with status " ++ (show status)
     -- Handling exit signal
     case status of
-         IrcdContinue -> startIrcd config -- TODO do something not so dumb about starting over
-         IrcdExit -> runReaderT terminateIrcd ircdEnv
-         IrcdReload -> relaunchMaster Nothing -- TODO relaunchWithTextState (state { stateConfig = config }) Nothing, add a flag that prevent spawning the sockets again
-         IrcdRestart -> relaunchMaster Nothing -- TODO relaunch and kill sockets
+         Continue -> startIrcd config -- TODO do something not so dumb about starting over
+         Exit -> runReaderT terminateIrcd ircdEnv
+         Restart -> relaunchMaster Nothing -- TODO relaunch and kill sockets
 
 ircd :: Config -> IO ()
 ircd = Dyre.wrapMain $ Dyre.defaultParams

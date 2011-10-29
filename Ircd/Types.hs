@@ -1,9 +1,13 @@
 module Ircd.Types
-    ( ClientEnv (..)
-    , Ircd
+    ( Env
     , IrcdEnv (..)
-    , IrcdStatus (..)
+    , IrcdState (..)
     , Message (..)
+    , PEnv
+    , PeerEnv (..)
+    , PeerState (..)
+    , PeerStatus (..)
+    , Status (..)
     ) where
 
 import Control.Concurrent
@@ -13,27 +17,51 @@ import Network.Socket
 import Network.TLS
 import System.IO
 
-data IrcdStatus = IrcdContinue | IrcdExit | IrcdReload | IrcdRestart deriving (Show)
+-- Status
+data Status = Continue | Exit | Restart deriving (Show)
 
-type Ircd = ReaderT IrcdEnv
+-- Server environment
+type Env = ReaderT IrcdEnv
 
 data IrcdEnv = IrcdEnv
-    { envSockets     :: [Socket]
+    { envIrcdState   :: MVar IrcdState
+    , envSockets     :: [Socket]
     , envChan        :: Chan Message
-    , envQuitMv      :: MVar (IrcdStatus)
+    , envQuitMv      :: MVar (Status)
     , envThreadIdsMv :: MVar [ThreadId]
     , envTLS         :: Maybe TLSParams
     }
 
-data ClientEnv = ClientEnv
-    { clientHandle :: Handle
-    , clientChan   :: Chan Message
-    , clientSocket :: Socket
-    , clientAddr   :: SockAddr
-    , clientTLSCtx :: Maybe TLSCtx
+-- The Peer environment
+type PEnv = ReaderT PeerEnv
+
+data PeerEnv = PeerEnv
+    { peerState       :: MVar PeerState
+    , peerHandle      :: Handle
+    , peerSocket      :: Socket
+    , peerChan        :: Chan Message
+    , peerQuitMv      :: MVar (Status)
+    , peerThreadIdsMv :: MVar [ThreadId]
+    , peerTLSCtx      :: Maybe (TLSCtx Handle)
+    , peerClientAddr  :: SockAddr
     }
 
-data Message = ClientMsg ClientEnv IRC.Message
-             | IrcMsg IRC.Message
+-- Server State
+data IrcdState = IrcdState
+    { ircdClients :: [PeerState]
+    }
+
+-- Peer state
+data PeerState = PeerState
+    { peerStatus :: PeerStatus
+    , peerPass   :: Maybe String
+    , peerNick   :: Maybe String
+    , peerUser   :: Maybe String
+    }
+
+data PeerStatus = UNREGISTERED | REGISTERING | REGISTERED
+
+data Message = ClientMsg PeerEnv IRC.Message
+             | IncomingMsg IRC.Message
              | OutgoingMsg IRC.Message
 

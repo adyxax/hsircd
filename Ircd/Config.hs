@@ -1,25 +1,24 @@
 module Ircd.Config
     ( Config (..)
     , Listen (..)
-    , SSLParams (..)
+    , TLSConfig (..)
     , defaultConfig
     , defaultListener
-    , defaultSSLParams
-    , noSSL
+    , defaultTLSConfig
+    , noTLS
     ) where
-
-import Network.TLS
 
 data Config = Config
     { configListen :: [Listen]
     , configErrors :: Maybe String
-    , configSSL    :: SSLParams
+    , configTLS    :: TLSConfig
     } deriving (Show)
 
 defaultConfig :: Config
-defaultConfig = Config { configListen = [ defaultListener ]
-                       , configErrors = Nothing
-                       , configSSL    = noSSL }
+defaultConfig = Config
+    { configListen = [ defaultListener ]
+    , configErrors = Nothing
+    , configTLS    = noTLS }
 
 data Listen = Listen
     { listenAddress     :: String
@@ -31,32 +30,20 @@ defaultListener = Listen
     { listenAddress     = "0.0.0.0"
     , listenPort        = "6667" }
 
-data SSLParams = SSLParams
-    { sslOn       :: Bool
-    , sslCert     :: String
-    , sslKey      :: String
-    , sslVersions :: [Network.TLS.Version]
-    , sslCiphers  :: [Network.TLS.Cipher]
-    , sslVerify   :: Bool
+data TLSConfig = TLSConfig
+    { tlsOn       :: Bool
+    , tlsCert     :: String
+    , tlsKey      :: String
+    , tlsVerify   :: Bool
     } deriving (Show)
 
-defaultSSLParams :: SSLParams
-defaultSSLParams = SSLParams
-    { sslOn       = True
-    , sslCert     = ""
-    , sslKey      = ""
-    , sslVersions = [SSL3, TLS10, TLS11, TLS12]
-    , sslCiphers  = [ cipher_null_MD5
-                    , cipher_null_SHA1
-                    , cipher_AES128_SHA1
-                    , cipher_AES256_SHA1
-                    , cipher_RC4_128_MD5
-                    , cipher_RC4_128_SHA1
-                    , cipher_AES256_SHA1
-                    , cipher_AES128_SHA256
-                    , cipher_AES256_SHA256 ]
-    , sslVerify   = True }
+defaultTLSConfig :: TLSConfig
+defaultTLSConfig = TLSConfig
+    { tlsOn       = True
+    , tlsCert     = ""
+    , tlsKey      = ""
+    , tlsVerify   = True }
 
-noSSL :: SSLParams
-noSSL = defaultSSLParams { sslOn = False }
+noTLS :: TLSConfig
+noTLS = defaultTLSConfig { tlsOn = False }
 

@@ -17,22 +17,24 @@ Build-type:         Simple
 Library
   ghc-options: -Wall
   exposed-modules:  Ircd
-                    Ircd.Client
                     Ircd.Config
                     Ircd.Core
+                    Ircd.Peer
                     Ircd.Types
                     Ircd.Utils
   Extensions:       DeriveDataTypeable FlexibleContexts ScopedTypeVariables
   Build-depends:    base >= 4.1 && < 5,
                     bytestring,
                     certificate,
+                    crypto-api,
                     cryptocipher,
                     dyre,
                     hslogger,
                     irc,
                     mtl,
                     network,
-                    tls >= 0.4
+                    tls >= 0.4,
+                    utf8-string
 
 
 Executable hsircd
