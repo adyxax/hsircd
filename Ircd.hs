@@ -22,7 +22,7 @@ startIrcd config = do
     -- main stuff
     infoM "Ircd" "Server starting"
     status <- runReaderT runIrcd ircdEnv
-    infoM "Ircd" $ "Server exited with status " ++ (show status)
+    infoM "Ircd" $ "Server exited with status " ++ show status
     -- Handling exit signal
     case status of
          Continue -> startIrcd config -- TODO do something not so dumb about starting over
@@ -33,5 +33,5 @@ ircd :: Config -> IO ()
 ircd = Dyre.wrapMain $ Dyre.defaultParams
     { Dyre.projectName = "hsircd"
     , Dyre.realMain    = startIrcd
-    , Dyre.showError   = (\config err -> config { configErrors = Just err }) }
+    , Dyre.showError   = \config err -> config { configErrors = Just err } }
 

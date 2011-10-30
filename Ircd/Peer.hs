@@ -1,4 +1,4 @@
-{-# OPTIONS_GHC -XScopedTypeVariables #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 module Ircd.Peer
     ( handlePeerRequests
     ) where
@@ -14,6 +14,7 @@ import Prelude hiding (catch)
 import System.IO
 import System.Log.Logger
 
+--import Ircd.Commands
 import Ircd.Types
 import Ircd.Utils
 
@@ -24,11 +25,11 @@ handlePeerRequests peerEnv = do
         chan    = peerChan peerEnv
         addr    = peerClientAddr peerEnv
         ctx     = peerTLSCtx peerEnv
-    myOwnThreadId  <- liftIO $ myThreadId
+    myOwnThreadId  <- liftIO myThreadId
     -- We spawn the socket's reader
     readerThreadId <- liftIO . forkIO $ peerReader connhdl ctx chan myOwnThreadId
     -- Then we run the main peer loop
-    status <- liftIO $ (runReaderT (runReaderT peerCore peerEnv) env)
+    status <- liftIO $ runReaderT (runReaderT peerCore peerEnv) env
                 `catches` [ Handler (\ (_ :: IOException) -> return Exit)
                           , Handler (\ (_ :: AsyncException) -> return Exit) ]
     -- Finally we terminate properly
@@ -37,18 +38,18 @@ handlePeerRequests peerEnv = do
         Just sCtx -> bye sCtx
         Nothing   -> return ()
     liftIO $ hClose connhdl -- TODO : have a way to check if we are reloading or not
-    (liftIO $ myThreadId) >>= delThreadIdFromQuitMVar
-    liftIO $ infoM "Ircd.peer" $ "peer disconnected " ++ (show addr) ++ " with status " ++ (show status)
+    liftIO myThreadId >>= delThreadIdFromQuitMVar
+    liftIO $ infoM "Ircd.peer" $ "peer disconnected " ++ show addr ++ " with status " ++ show status
     return ()
 
 -- | Runs the IrcBot's reader loop
 peerReader :: Handle -> Maybe (TLSCtx Handle) -> Chan Message -> ThreadId -> IO ()
 peerReader _ (Just ctx) chan _ = forever $
-    recvData ctx >>= return . L.toChunks >>= mapM_ (handleIncomingStr chan . C.unpack)  -- TODO exceptions
+    fmap L.toChunks (recvData ctx) >>= mapM_ (handleIncomingStr chan . C.unpack)  -- TODO exceptions
 peerReader handle Nothing chan fatherThreadId = forever $
-    (hGetLine handle) `catch` handleIOException >>= handleIncomingStr chan
+    hGetLine handle `catch` handleIOException >>= handleIncomingStr chan
   where
-    handleIOException :: IOException -> IO (String)
+    handleIOException :: IOException -> IO String
     handleIOException ioException = do
         throwTo fatherThreadId ioException
         myId <- myThreadId
@@ -62,8 +63,16 @@ handleIncomingStr chan str = do
         Just msg -> writeChan chan $ IncomingMsg msg
         Nothing -> return () -- TODO spam control
 
-peerCore :: PEnv (Env IO) (Status)
+peerCore :: PEnv (Env IO) Status
 peerCore = forever $ do
     msg <- asks peerChan >>= lift . liftIO . readChan
+    --processPeerCommand msg
+    --    OutgoingMsg msg' -> do
+    --        liftIO $ debugM "Ircd.peer" $ "--> " ++ (show msg')
+    --        handle <- asks peerHandle
+    --        ctx <- asks peerTLSCtx
+    --        lift . liftIO $ handleOutgoingStr handle ctx $ IRC.encode msg' -- TODO exceptions
+    --        return ()
+    --    peerMsg _ _ -> return ()
     return Continue
 

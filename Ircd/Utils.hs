@@ -19,6 +19,7 @@ import qualified Data.Certificate.KeyRSA as KeyRSA
 import Data.Certificate.PEM
 import Data.Certificate.X509
 import Data.List
+import Data.Maybe (fromMaybe)
 import Network
 import Network.Socket
 import Network.TLS
@@ -37,7 +38,7 @@ addThreadIdToQuitMVar thrId = do
 delThreadIdFromQuitMVar :: ThreadId -> Env IO ()
 delThreadIdFromQuitMVar thrId = do
     threadIdsMv <- asks envThreadIdsMv
-    liftIO $ modifyMVar_ threadIdsMv (\l -> return $ delete thrId l)
+    liftIO $ modifyMVar_ threadIdsMv (return . delete thrId)
 
 setGlobalQuitMVar :: Status -> Env IO ()
 setGlobalQuitMVar status = do
@@ -50,7 +51,7 @@ sendStr _ (Just ctx) msg = sendData ctx (L8.fromString $ msg ++ "\r\n")
 sendStr handle Nothing msg = hPutStrLn handle (msg ++ "\r\n")
 
 -- Socket utils
-initSocket :: Listen -> IO (Socket)
+initSocket :: Listen -> IO Socket
 initSocket (Listen hostname port) = do
     liftIO $ infoM "Ircd.Core" $ "Listening on " ++ hostname ++ ":" ++ port
     addrinfos <- getAddrInfo Nothing (Just hostname) (Just port)
@@ -62,7 +63,7 @@ initSocket (Listen hostname port) = do
     return mySocket
 
 -- TLS utils
-initTLSEnv :: TLSConfig -> IO (TLSParams)
+initTLSEnv :: TLSConfig -> IO TLSParams
 initTLSEnv tls = do
     infoM "Ircd.Core" "snif"
     let certFile = tlsCert tls
@@ -81,11 +82,9 @@ initTLSEnv tls = do
 readCertificate :: FilePath -> IO X509
 readCertificate filepath = do
     content <- B.readFile filepath
-    let certdata = case parsePEMCert content of
-            Nothing -> error ("no valid certificate section")
-            Just x  -> x
+    let certdata = fromMaybe (error "no valid certificate section") (parsePEMCert content)
     let cert = case decodeCertificate $ L.fromChunks [certdata] of
-            Left err -> error ("cannot decode certificate: " ++ err)
+            Left err -> error $ "cannot decode certificate: " ++ err
             Right x  -> x
     return cert
 
@@ -93,11 +92,11 @@ readPrivateKey :: FilePath -> IO PrivateKey
 readPrivateKey filepath = do
     content <- B.readFile filepath
     let pkdata = case parsePEMKeyRSA content of
-            Nothing -> error ("no valid RSA key section")
+            Nothing -> error "no valid RSA key section"
             Just x  -> L.fromChunks [x]
     let pk = case KeyRSA.decodePrivate pkdata of
             Left err -> error ("cannot decode key: " ++ err)
-            Right x  -> PrivRSA $ RSA.PrivateKey
+            Right x  -> PrivRSA RSA.PrivateKey
                 { RSA.private_sz   = fromIntegral $ KeyRSA.lenmodulus x
                 , RSA.private_n    = KeyRSA.modulus x
                 , RSA.private_d    = KeyRSA.private_exponant x

@@ -27,7 +27,7 @@ data IrcdEnv = IrcdEnv
     { envIrcdState   :: MVar IrcdState
     , envSockets     :: [Socket]
     , envChan        :: Chan Message
-    , envQuitMv      :: MVar (Status)
+    , envQuitMv      :: MVar Status
     , envThreadIdsMv :: MVar [ThreadId]
     , envTLS         :: Maybe TLSParams
     }
@@ -40,7 +40,7 @@ data PeerEnv = PeerEnv
     , peerHandle      :: Handle
     , peerSocket      :: Socket
     , peerChan        :: Chan Message
-    , peerQuitMv      :: MVar (Status)
+    , peerQuitMv      :: MVar Status
     , peerThreadIdsMv :: MVar [ThreadId]
     , peerTLSCtx      :: Maybe (TLSCtx Handle)
     , peerClientAddr  :: SockAddr
