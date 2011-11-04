@@ -12,7 +12,6 @@ import Network.TLS
 import System.IO
 import System.Log.Logger
 
-import Ircd.Config
 import Ircd.Peer
 import Ircd.Types
 import Ircd.Utils
@@ -36,7 +35,8 @@ initIrcd config = do
                    , envChan        = chan
                    , envQuitMv      = quitMv
                    , envThreadIdsMv = threadIdsMv
-                   , envTLS         = tls }
+                   , envTLS         = tls
+                   , envConfig      = config }
 
 runIrcd :: Env IO Status
 runIrcd = do

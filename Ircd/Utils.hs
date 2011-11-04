@@ -26,7 +26,6 @@ import Network.TLS
 import System.IO
 import System.Log.Logger
 
-import Ircd.Config
 import Ircd.Types
 
 -- utility functions

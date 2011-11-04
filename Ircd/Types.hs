@@ -1,13 +1,16 @@
 module Ircd.Types
-    ( Env
+    ( Config (..)
+    , Env
     , IrcdEnv (..)
     , IrcdState (..)
+    , Listen (..)
     , Message (..)
     , PEnv
     , PeerEnv (..)
     , PeerState (..)
     , PeerStatus (..)
     , Status (..)
+    , TLSConfig (..)
     ) where
 
 import Control.Concurrent
@@ -16,6 +19,26 @@ import qualified Network.IRC as IRC
 import Network.Socket
 import Network.TLS
 import System.IO
+
+-- Config data types
+data Config = Config
+    { configErrors     :: Maybe String
+    , configListen     :: [Listen]
+    , configServerName :: String
+    , configTLS        :: TLSConfig
+    } deriving (Show)
+
+data Listen = Listen
+    { listenAddress     :: String
+    , listenPort        :: String
+    } deriving (Show)
+
+data TLSConfig = TLSConfig
+    { tlsOn       :: Bool
+    , tlsCert     :: String
+    , tlsKey      :: String
+    , tlsVerify   :: Bool
+    } deriving (Show)
 
 -- Status
 data Status = Continue | Exit | Restart deriving (Show)
@@ -30,6 +53,7 @@ data IrcdEnv = IrcdEnv
     , envQuitMv      :: MVar Status
     , envThreadIdsMv :: MVar [ThreadId]
     , envTLS         :: Maybe TLSParams
+    , envConfig      :: Config
     }
 
 -- The Peer environment
