@@ -53,7 +53,7 @@ runIrcd = do
 
     ircdAccept :: Socket -> Env IO ()
     ircdAccept masterSocket = do
-        peerstate <- liftIO newEmptyMVar
+        peerstate <- liftIO $ newMVar defaultPeerState
         env <- ask
         (connsock, clientaddr) <- liftIO $ accept masterSocket
         liftIO $ infoM "Ircd.Client" $ "Receiving incoming connection " ++ show clientaddr

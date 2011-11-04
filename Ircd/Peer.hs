@@ -1,6 +1,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 module Ircd.Peer
-    ( handlePeerRequests
+    ( defaultPeerState
+    , handlePeerRequests
     ) where
 
 import Control.Concurrent
@@ -17,6 +18,13 @@ import System.Log.Logger
 --import Ircd.Commands
 import Ircd.Types
 import Ircd.Utils
+
+defaultPeerState :: PeerState
+defaultPeerState = PeerState
+    { peerStatus = UNREGISTERED
+    , peerPass   = Nothing
+    , peerNick   = Nothing
+    , peerUser   = Nothing }
 
 handlePeerRequests :: PeerEnv -> Env IO ()
 handlePeerRequests peerEnv = do
