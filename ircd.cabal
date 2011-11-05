@@ -17,6 +17,7 @@ Build-type:         Simple
 Library
   ghc-options: -Wall
   exposed-modules:  Ircd
+                    Ircd.Command
                     Ircd.Config
                     Ircd.Core
                     Ircd.Peer

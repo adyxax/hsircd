@@ -15,7 +15,7 @@ import Prelude hiding (catch)
 import System.IO
 import System.Log.Logger
 
---import Ircd.Commands
+import Ircd.Command
 import Ircd.Types
 import Ircd.Utils
 
@@ -74,13 +74,14 @@ handleIncomingStr chan str = do
 peerCore :: PEnv (Env IO) Status
 peerCore = forever $ do
     msg <- asks peerChan >>= lift . liftIO . readChan
-    --processPeerCommand msg
-    --    OutgoingMsg msg' -> do
-    --        liftIO $ debugM "Ircd.peer" $ "--> " ++ (show msg')
-    --        handle <- asks peerHandle
-    --        ctx <- asks peerTLSCtx
-    --        lift . liftIO $ handleOutgoingStr handle ctx $ IRC.encode msg' -- TODO exceptions
-    --        return ()
-    --    peerMsg _ _ -> return ()
+    case msg of
+        IncomingMsg msg' -> processPeerCommand msg'
+        OutgoingMsg msg' -> do
+            liftIO . debugM "Ircd.peer" $ "--> " ++ show msg'
+            handle <- asks peerHandle
+            ctx <- asks peerTLSCtx
+            lift . liftIO $ sendStr handle ctx $ IRC.encode msg' -- TODO exceptions
+            return ()
+        ClientMsg _ _ -> return ()
     return Continue
 

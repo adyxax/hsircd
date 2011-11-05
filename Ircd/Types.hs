@@ -83,7 +83,7 @@ data PeerState = PeerState
     , peerUser   :: Maybe String
     }
 
-data PeerStatus = UNREGISTERED | REGISTERING | REGISTERED
+data PeerStatus = UNREGISTERED | REGISTERING | REGISTERED deriving (Eq)
 
 data Message = ClientMsg PeerEnv IRC.Message
              | IncomingMsg IRC.Message

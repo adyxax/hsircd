@@ -2,4 +2,7 @@ I- ircd-0.1:
 ------------
   * Handle signals
   * Basic protocol implementation : Channels and users
+  * Fix TPC stream parsing
+  * Get rid of the configTLS data type
+  * Get rid of the incomming/outgoing msg data types
 
