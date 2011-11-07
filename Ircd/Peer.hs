@@ -66,5 +66,5 @@ peerCore buff = do
             Nothing -> return ()
     readThis :: Handle -> Maybe (TLSCtx Handle) -> IO String
     readThis _ (Just ctx) = fmap L.toString (recvData ctx)
-    readThis h Nothing = hGetLine h
+    readThis h Nothing = hGetLine h >>= \s -> return $ s ++ "\n"
 
