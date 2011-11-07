@@ -30,7 +30,7 @@ initIrcd config = do
     chan <- newChan :: IO (Chan Message)
     threadIdsMv <- newMVar []
     quitMv <- newEmptyMVar
-    return IrcdEnv { envIrcdState = ircdState
+    return IrcdEnv { envIrcdState   = ircdState
                    , envSockets     = mySockets
                    , envChan        = chan
                    , envQuitMv      = quitMv
@@ -60,7 +60,6 @@ runIrcd = do
         connhdl <- liftIO $ socketToHandle connsock ReadWriteMode
         liftIO $ hSetBuffering connhdl NoBuffering
         liftIO $ hSetEncoding connhdl utf8
-        chan <- liftIO (newChan :: IO (Chan Message))
         ctx <- case envTLS env of
             Just params -> do
                 randomGen <- liftIO (newGenIO :: IO SystemRandom)
@@ -69,14 +68,9 @@ runIrcd = do
                 unless success . liftIO $ errorM "Hsbot.Core" "TLS handshake failed"  -- TODO: do some usefull error handling
                 return $ Just sCtx
             Nothing  -> return Nothing
-        quitmv <- liftIO newEmptyMVar
-        threadidsmv <- liftIO newEmptyMVar
         let thePeer = PeerEnv { peerState  = peerstate
                               , peerHandle = connhdl
                               , peerSocket = connsock
-                              , peerChan   = chan
-                              , peerQuitMv = quitmv
-                              , peerThreadIdsMv = threadidsmv
                               , peerTLSCtx = ctx
                               , peerClientAddr = clientaddr }
         liftIO (forkIO $ runReaderT (handlePeerRequests thePeer) env) >>= addThreadIdToQuitMVar

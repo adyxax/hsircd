@@ -41,7 +41,7 @@ data TLSConfig = TLSConfig
     } deriving (Show)
 
 -- Status
-data Status = Continue | Exit | Restart deriving (Show)
+data Status = Continue | Exit String | Restart String deriving (Show)
 
 -- Server environment
 type Env = ReaderT IrcdEnv
@@ -63,9 +63,6 @@ data PeerEnv = PeerEnv
     { peerState       :: MVar PeerState
     , peerHandle      :: Handle
     , peerSocket      :: Socket
-    , peerChan        :: Chan Message
-    , peerQuitMv      :: MVar Status
-    , peerThreadIdsMv :: MVar [ThreadId]
     , peerTLSCtx      :: Maybe (TLSCtx Handle)
     , peerClientAddr  :: SockAddr
     }

@@ -71,6 +71,8 @@ replyStr cmd params = do
     serverName <- fmap configServerName $ lift (asks envConfig)
     let connhdl  = peerHandle penv
         tlsCtx   = peerTLSCtx penv
-    liftIO . sendStr connhdl tlsCtx . IRC.encode $ IRC.Message (Just $ IRC.Server serverName) cmd params
+        msg = IRC.Message (Just $ IRC.Server serverName) cmd params
+    liftIO . sendStr connhdl tlsCtx $ IRC.encode msg
+    liftIO . debugM "Ircd.peer" $ "--> " ++ show msg
 
 

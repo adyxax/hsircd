@@ -7,7 +7,6 @@ import Config.Dyre.Relaunch
 import Control.Monad.Reader
 import System.Log.Logger
 
-import Ircd.Config
 import Ircd.Core
 import Ircd.Types
 
@@ -26,8 +25,8 @@ startIrcd config = do
     -- Handling exit signal
     case status of
          Continue -> startIrcd config -- TODO do something not so dumb about starting over
-         Exit -> runReaderT terminateIrcd ircdEnv
-         Restart -> relaunchMaster Nothing -- TODO relaunch and kill sockets
+         Exit _ -> runReaderT terminateIrcd ircdEnv
+         Restart _ -> relaunchMaster Nothing -- TODO relaunch and kill sockets
 
 ircd :: Config -> IO ()
 ircd = Dyre.wrapMain $ Dyre.defaultParams

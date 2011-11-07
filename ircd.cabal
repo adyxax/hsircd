@@ -34,6 +34,7 @@ Library
                     irc,
                     mtl,
                     network,
+                    parsec3,
                     tls >= 0.4,
                     utf8-string
 

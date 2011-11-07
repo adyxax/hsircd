@@ -5,4 +5,5 @@ I- ircd-0.1:
   * Fix TPC stream parsing
   * Get rid of the configTLS data type
   * Get rid of the incomming/outgoing msg data types
+  * make several command process for each stage (three?) after getting rid of incomming/outgoing stuff
 
