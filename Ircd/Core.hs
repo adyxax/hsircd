@@ -56,7 +56,7 @@ runIrcd = do
         peerstate <- liftIO $ newMVar defaultPeerState
         env <- ask
         (connsock, clientaddr) <- liftIO $ accept masterSocket
-        liftIO $ infoM "Ircd.Client" $ "Receiving incoming connection " ++ show clientaddr
+        liftIO . infoM "Ircd.Peer" $ "Receiving incoming connection " ++ show clientaddr
         connhdl <- liftIO $ socketToHandle connsock ReadWriteMode
         liftIO $ hSetBuffering connhdl NoBuffering
         liftIO $ hSetEncoding connhdl utf8
