@@ -78,6 +78,7 @@ data PeerState = PeerState
     , peerPass   :: Maybe String
     , peerNick   :: Maybe String
     , peerUser   :: Maybe String
+    , peerServer :: Bool
     }
 
 data PeerStatus = UNREGISTERED | REGISTERING | REGISTERED deriving (Eq)
