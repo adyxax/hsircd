@@ -11,9 +11,15 @@ import Ircd.Types
 import Ircd.Utils
 
 processPeerCommand :: IRC.Message -> PEnv (Env IO) ()
-processPeerCommand msg =
+processPeerCommand msg = do
+    pst <- asks peerState
+    status <- fmap peerStatus $ liftIO (readMVar pst)
     case IRC.msg_command msg of
-        "PASS" -> processPassCommand
+        "PASS" -> if status == UNREGISTERED
+                    then (case IRC.msg_params msg of
+                            pass:_ -> liftIO $ modifyMVar_ pst (\st -> return st { peerPass = Just pass })
+                            [] -> replyStr "461" ["PASS", "Not enough parameters"])
+                    else replyStr "462" ["PASS", "You may not reregister"]
         "NICK" -> liftIO $ errorM "Ircd.Command" $ "Command not implemented : " ++ IRC.msg_command msg
         "USER" -> liftIO $ errorM "Ircd.Command" $ "Command not implemented : " ++ IRC.msg_command msg
         "SERVER" -> liftIO $ errorM "Ircd.Command" $ "Command not implemented : " ++ IRC.msg_command msg
@@ -54,16 +60,6 @@ processPeerCommand msg =
         "USERHOST" -> liftIO $ errorM "Ircd.Command" $ "Command not implemented : " ++ IRC.msg_command msg
         "ISON" -> liftIO $ errorM "Ircd.Command" $ "Command not implemented : " ++ IRC.msg_command msg
         _ -> liftIO $ errorM "Ircd.Command" $ "Invalid command in IRC message : " ++ IRC.msg_command msg
-  where
-    processPassCommand :: PEnv (Env IO) ()
-    processPassCommand = do
-        pst <- asks peerState
-        status <- fmap peerStatus $ liftIO (readMVar pst)
-        if status == UNREGISTERED
-            then (case IRC.msg_params msg of
-                    pass:_ -> liftIO $ modifyMVar_ pst (\st -> return st { peerPass = Just pass })
-                    [] -> replyStr "461" ["PASS", "Not enough parameters"])
-            else replyStr "462" ["PASS", "You may not reregister"]
 
 replyStr :: IRC.Command -> [IRC.Parameter] -> PEnv (Env IO) ()
 replyStr cmd params = do
