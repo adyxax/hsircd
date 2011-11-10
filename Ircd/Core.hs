@@ -7,6 +7,7 @@ module Ircd.Core
 import Control.Concurrent
 import Control.Monad.Reader
 import Crypto.Random
+import qualified Data.Map as M
 import Network.Socket
 import Network.TLS
 import System.IO
@@ -16,9 +17,14 @@ import Ircd.Peer
 import Ircd.Types
 import Ircd.Utils
 
+defaultIrcdState :: IrcdState
+defaultIrcdState = IrcdState
+    { ircdPeers = []
+    , ircdNicks = M.empty }
+
 initIrcd :: Config -> IO IrcdEnv
 initIrcd config = do
-    ircdState <- newEmptyMVar
+    ircdState <- newMVar defaultIrcdState
     liftIO $ infoM "Ircd.Core" "Binding server"
     mySockets <- mapM initSocket $ configListen config
     let tlsConfig = configTLS config

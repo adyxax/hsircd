@@ -4,9 +4,13 @@ module Ircd.Peer
     , handlePeerRequests
     ) where
 
+import Control.Concurrent.MVar
 import Control.Exception (IOException, catch)
 import Control.Monad.Reader
 import qualified Data.ByteString.Lazy.UTF8 as L
+import Data.List (delete)
+import qualified Data.Map as M
+import Data.Maybe (fromMaybe)
 import qualified Network.IRC as IRC
 import Network.TLS
 import Prelude hiding (catch)
@@ -27,9 +31,10 @@ defaultPeerState = PeerState
 
 handlePeerRequests :: PeerEnv -> Env IO ()
 handlePeerRequests peerEnv = do
+    addIrcdPeer peerEnv
     env <- ask
     _ <- liftIO $ runReaderT (runReaderT (peerCore "") peerEnv) env `catch` return
-    -- TODO : tell everyone about this peer quiting
+    delIrcdPeer peerEnv
     liftIO $ infoM "Ircd.Peer" "Closing connection"
     liftIO . hClose $ peerHandle peerEnv
 
@@ -68,4 +73,15 @@ peerCore buff = do
     readThis :: Handle -> Maybe (TLSCtx Handle) -> IO String
     readThis _ (Just ctx) = fmap L.toString (recvData ctx)
     readThis h Nothing = hGetLine h >>= \s -> return $ s ++ "\n"
+
+addIrcdPeer :: PeerEnv -> Env IO ()
+addIrcdPeer penv = asks envIrcdState >>= liftIO . flip modifyMVar_ (\state -> return state { ircdPeers = penv : ircdPeers state })
+
+delIrcdPeer :: PeerEnv -> Env IO ()
+delIrcdPeer penv = do
+    pstate <- liftIO . takeMVar $ peerState penv
+    asks envIrcdState >>= liftIO . readMVar >>= liftIO . print
+    -- TODO : tell everyone about this peer quiting
+    asks envIrcdState >>= liftIO . flip modifyMVar_ (\state -> return state { ircdPeers = delete penv $ ircdPeers state
+                                                                            , ircdNicks = M.delete (fromMaybe "" $ peerNick pstate) $ ircdNicks state })
 

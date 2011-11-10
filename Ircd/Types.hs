@@ -14,6 +14,7 @@ module Ircd.Types
     ) where
 
 import Control.Concurrent
+import qualified Data.Map as M
 import Control.Monad.Reader
 import qualified Network.IRC as IRC
 import Network.Socket
@@ -67,10 +68,17 @@ data PeerEnv = PeerEnv
     , peerClientAddr  :: SockAddr
     }
 
+instance Eq PeerEnv where
+  a == b = peerHandle a == peerHandle b
+
+instance Show PeerEnv where
+  show = show . peerHandle
+
 -- Server State
 data IrcdState = IrcdState
-    { ircdClients :: [PeerState]
-    }
+    { ircdPeers :: [PeerEnv]
+    , ircdNicks :: M.Map String PeerEnv
+    } deriving (Show)
 
 -- Peer state
 data PeerState = PeerState
