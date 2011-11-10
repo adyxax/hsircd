@@ -60,20 +60,21 @@ runIrcd = do
         connhdl <- liftIO $ socketToHandle connsock ReadWriteMode
         liftIO $ hSetBuffering connhdl NoBuffering
         liftIO $ hSetEncoding connhdl utf8
-        ctx <- case envTLS env of
+        (ctx, success) <- case envTLS env of
             Just params -> do
                 randomGen <- liftIO (newGenIO :: IO SystemRandom)
-                sCtx <- server params randomGen connhdl
-                success <- handshake sCtx
-                unless success . liftIO $ errorM "Hsbot.Core" "TLS handshake failed"  -- TODO: do some usefull error handling
-                return $ Just sCtx
-            Nothing  -> return Nothing
+                ctx <- server params randomGen connhdl
+                success <- handshake ctx
+                return $ (Just ctx, success)
+            Nothing  -> return (Nothing, True)
         let thePeer = PeerEnv { peerState  = peerstate
                               , peerHandle = connhdl
                               , peerSocket = connsock
                               , peerTLSCtx = ctx
                               , peerClientAddr = clientaddr }
-        liftIO (forkIO $ runReaderT (handlePeerRequests thePeer) env) >>= addThreadIdToQuitMVar
+        if success
+          then liftIO (forkIO $ runReaderT (handlePeerRequests thePeer) env) >>= addThreadIdToQuitMVar
+          else liftIO $ errorM "Hsbot.Core" "TLS handshake failed"  -- TODO: do some usefull error handling
 
 terminateIrcd :: Env IO ()
 terminateIrcd = do
