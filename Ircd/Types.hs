@@ -82,11 +82,11 @@ data IrcdState = IrcdState
 
 -- Peer state
 data PeerState = PeerState
-    { peerStatus :: PeerStatus
-    , peerPass   :: Maybe String
-    , peerNick   :: Maybe String
-    , peerUser   :: Maybe String
-    , peerServer :: Bool
+    { peerStatus   :: PeerStatus
+    , peerPass     :: Maybe String
+    , peerNick     :: Maybe String
+    , peerUser     :: Maybe String
+    , peerIsServer :: Bool
     }
 
 data PeerStatus = UNREGISTERED | REGISTERING | REGISTERED deriving (Eq)

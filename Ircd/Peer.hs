@@ -23,11 +23,11 @@ import Ircd.Types
 
 defaultPeerState :: PeerState
 defaultPeerState = PeerState
-    { peerStatus = UNREGISTERED
-    , peerPass   = Nothing
-    , peerNick   = Nothing
-    , peerUser   = Nothing
-    , peerServer = False }
+    { peerStatus   = UNREGISTERED
+    , peerPass     = Nothing
+    , peerNick     = Nothing
+    , peerUser     = Nothing
+    , peerIsServer = False }
 
 handlePeerRequests :: PeerEnv -> Env IO ()
 handlePeerRequests peerEnv = do
