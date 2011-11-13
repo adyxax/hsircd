@@ -64,12 +64,14 @@ processPeerCommand msg = do
 
 replyStr :: IRC.Command -> [IRC.Parameter] -> PEnv (Env IO) ()
 replyStr cmd params = do
-    penv <- ask
     serverName <- fmap configServerName $ lift (asks envConfig)
+    let msg = IRC.Message (Just $ IRC.Server serverName) cmd params
+    ask >>= liftIO . flip sendTo msg
+
+sendTo :: PeerEnv -> IRC.Message -> IO ()
+sendTo penv msg = do
     let connhdl  = peerHandle penv
         tlsCtx   = peerTLSCtx penv
-        msg = IRC.Message (Just $ IRC.Server serverName) cmd params
     liftIO . sendStr connhdl tlsCtx $ IRC.encode msg
     liftIO . debugM "Ircd.peer" $ "--> " ++ show msg
-
 
