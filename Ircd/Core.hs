@@ -20,7 +20,8 @@ import Ircd.Utils
 defaultIrcdState :: IrcdState
 defaultIrcdState = IrcdState
     { ircdPeers = []
-    , ircdNicks = M.empty }
+    , ircdNicks = M.empty
+    , ircdChans = M.empty }
 
 initIrcd :: Config -> IO IrcdEnv
 initIrcd config = do

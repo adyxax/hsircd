@@ -27,6 +27,7 @@ defaultPeerState = PeerState
     , peerPass     = Nothing
     , peerNick     = Nothing
     , peerUser     = Nothing
+    , peerChans    = []
     , peerIsServer = False }
 
 handlePeerRequests :: PeerEnv -> Env IO ()
