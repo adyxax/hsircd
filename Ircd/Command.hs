@@ -47,6 +47,7 @@ processPeerCommand msg = do
                         -- Finally we advertise to clients and servers | WARNING : cannot test until JOIN is implemented
                         if success
                           then (do
+                              liftIO $ modifyMVar_ pstateMV (\st -> return st { peerNick = Just nick' })
                               let chans = peerChans pstate
                               stMVar <- lift (asks envIrcdState)
                               peers <- liftIO $ withMVar stMVar

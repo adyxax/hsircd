@@ -81,8 +81,17 @@ addIrcdPeer penv = asks envIrcdState >>= liftIO . flip modifyMVar_ (\state -> re
 delIrcdPeer :: PeerEnv -> Env IO ()
 delIrcdPeer penv = do
     pstate <- liftIO . takeMVar $ peerState penv
-    asks envIrcdState >>= liftIO . readMVar >>= liftIO . print
-    -- TODO : tell everyone about this peer quiting
-    asks envIrcdState >>= liftIO . flip modifyMVar_ (\state -> return state { ircdPeers = delete penv $ ircdPeers state
-                                                                            , ircdNicks = M.delete (fromMaybe "" $ peerNick pstate) $ ircdNicks state })
+    -- TODO : tell all people in chans who knows this nick about this peer quiting
+    asks envIrcdState >>= liftIO . flip modifyMVar_ (\state ->
+        let pnick = fromMaybe "" $ peerNick pstate
+            pchans = peerChans pstate
+            nicks = ircdNicks state
+            peers = ircdPeers state
+            chans = ircdChans state
+        in return state { ircdPeers = delete penv peers
+                        , ircdNicks = M.delete pnick nicks
+                        , ircdChans = foldl (\acc chan -> M.insert chan
+                                                                   (delete pnick . fromMaybe [] $ M.lookup chan acc)
+                                                                   acc)
+                                            chans pchans })
 

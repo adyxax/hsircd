@@ -72,7 +72,7 @@ runIrcd = do
                 randomGen <- liftIO (newGenIO :: IO SystemRandom)
                 ctx <- server params randomGen connhdl
                 success <- handshake ctx
-                return $ (Just ctx, success)
+                return (Just ctx, success)
             Nothing  -> return (Nothing, True)
         let thePeer = PeerEnv { peerState  = peerstate
                               , peerHandle = connhdl
