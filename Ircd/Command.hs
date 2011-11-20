@@ -43,7 +43,19 @@ processPeerCommand msg = do
                         -- Then we try to set the nickname in the server state
                         success <- lift (asks envIrcdState) >>= liftIO . flip modifyMVar (\st -> case M.lookup nick' (ircdNicks st) of
                             Just _ -> return (st, False)
-                            Nothing -> return (st { ircdNicks = M.insert nick' penv $ ircdNicks st }, True))
+                            Nothing ->
+                                let pchans = peerChans pstate
+                                    nicks = ircdNicks st
+                                    chans = ircdChans st
+                                    st' = case peerNick pstate of
+                                        Just oldnick ->
+                                            st { ircdNicks = M.insert nick' penv $ M.delete oldnick nicks
+                                               , ircdChans = foldl (\acc chan -> M.insert chan
+                                                                                          (nick' : L.delete oldnick (fromMaybe [] $ M.lookup chan acc))
+                                                                                          acc)
+                                                                   chans pchans }
+                                        Nothing -> st { ircdNicks = M.insert nick' penv nicks }
+                                in return (st', True))
                         -- Finally we advertise to clients and servers | WARNING : cannot test until JOIN is implemented
                         if success
                           then (do
