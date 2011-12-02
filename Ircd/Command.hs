@@ -8,6 +8,7 @@ import qualified Data.List as L
 import qualified Data.Map as M
 import Data.Maybe
 import qualified Network.IRC as IRC
+import qualified Network.BSD ()
 import System.Log.Logger
 import Text.Parsec
 
@@ -71,10 +72,10 @@ processPeerCommand msg = do
                                              then filter (/= penv) peers
                                              else peers
                               -- TODO : check this, maybe it's not ok to send msg with hopcount to non server peers
-                              liftIO $ mapM_ (`sendTo` msg') peers')
+                              liftIO $ mapM_ (`sendTo` msg') peers'
                               -- TODO : if we already have received a USER command from this directly connected client
-                              -- we need to relay this USER the other servers now, and set this client as registered
-                              -- in ircd's state
+                              -- we need to relay this USER the other servers now
+                              when (status == REGISTERING && peerUser pstate /= Nothing) $ liftIO $ modifyMVar_ pstateMV (\st -> return st { peerStatus = REGISTERED }))
                           else if peerIsServer pstate
                             then (replyStr "436" ["NICK", nick' ++ " :Nickname collision KILL"]
                                 -- TODO send KILLs for both the old nickname and the new one
@@ -83,7 +84,20 @@ processPeerCommand msg = do
                         return ()
                     Left _ -> replyStr "432" ["NICK", nick ++ " :Erroneus nickname"]
                 [] -> replyStr "431" ["NICK", "No nickname given"]
-        "USER" -> liftIO $ errorM "Ircd.Command" $ "Command not implemented : " ++ IRC.msg_command msg
+        "USER" -> do
+            when (status == UNREGISTERED) $ liftIO $ modifyMVar_ pstateMV (\st -> return st { peerStatus = REGISTERING })
+            case IRC.msg_params msg of
+                login:_:_:realname:_ -> if peerIsServer pstate
+                  then return () -- TODO check for nick in prefix too, as for hostname and servername
+                  else  if (status == REGISTERED)
+                    then replyStr "462" ["USER", "You may not reregister"]
+                    else (do
+                      let hostname = "graou" --TODO liftIO . getNameInfo []
+                      servername <- fmap configServerName (lift $ asks envConfig)
+                      liftIO $ modifyMVar_ pstateMV (\st -> return st { peerUser = Just $ (login, hostname, servername, realname) })
+                      -- TODO : If the client is fully registered we add a message prefix and we forward to all servers
+                      when (status == REGISTERING && peerNick pstate /= Nothing) $ liftIO $ modifyMVar_ pstateMV (\st -> return st { peerStatus = REGISTERED }))
+                _ -> replyStr "461" ["USER", "No enough parameters"]
         "SERVER" -> liftIO $ errorM "Ircd.Command" $ "Command not implemented : " ++ IRC.msg_command msg
         "OPER" -> liftIO $ errorM "Ircd.Command" $ "Command not implemented : " ++ IRC.msg_command msg
         "QUIT" -> liftIO $ errorM "Ircd.Command" $ "Command not implemented : " ++ IRC.msg_command msg

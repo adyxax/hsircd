@@ -86,7 +86,7 @@ data PeerState = PeerState
     { peerStatus   :: PeerStatus
     , peerPass     :: Maybe String
     , peerNick     :: Maybe String
-    , peerUser     :: Maybe String
+    , peerUser     :: Maybe (IRC.UserName, HostName, IRC.ServerName, IRC.RealName)
     , peerChans    :: [String]
     , peerIsServer :: Bool
     }
