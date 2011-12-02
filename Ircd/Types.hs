@@ -42,7 +42,7 @@ data TLSConfig = TLSConfig
     } deriving (Show)
 
 -- Status
-data Status = Continue | Exit String | Restart String deriving (Show)
+data Status = Continue | Exit String | Restart String deriving (Show, Eq)
 
 -- Server environment
 type Env = ReaderT IrcdEnv

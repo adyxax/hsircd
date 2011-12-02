@@ -33,18 +33,19 @@ defaultPeerState = PeerState
 handlePeerRequests :: PeerEnv -> Env IO ()
 handlePeerRequests peerEnv = do
     addIrcdPeer peerEnv
-    env <- ask
-    _ <- liftIO $ runReaderT (runReaderT (peerCore "") peerEnv) env `catch` return
+    runReaderT (peerCore "") peerEnv
     delIrcdPeer peerEnv
     liftIO $ infoM "Ircd.Peer" "Closing connection"
     liftIO . hClose $ peerHandle peerEnv
 
-peerCore :: String -> PEnv (Env IO) IOException
+peerCore :: String -> PEnv (Env IO) ()
 peerCore buff = do
     peerEnv <- ask
-    (msgs, tcpbuff) <- lift . liftIO $ botReader peerEnv buff
-    mapM_ handleMessage msgs
-    peerCore tcpbuff
+    (msgs, tcpbuff) <- liftIO $ botReader peerEnv buff `catch` \(ioe :: IOException) -> return (["QUIT :" ++ show ioe], "")
+    exitCode <- handleMessages msgs
+    if exitCode == Continue
+      then peerCore tcpbuff
+      else return ()
   where
     botReader :: PeerEnv -> String -> IO ([String], String)
     botReader peerEnv tcpbuff = do
@@ -64,13 +65,20 @@ peerCore buff = do
         mess <- many1 $ noneOf "\r\n"
         end <- string "\r\n" <|> string "\r" <|> string "\n"
         return $ mess ++ end
-    handleMessage :: String -> PEnv (Env IO) ()
+    handleMessages :: [String] -> PEnv (Env IO) (Status)
+    handleMessages [] = return Continue
+    handleMessages (x:res) = do
+        exitCode <- handleMessage x
+        if exitCode == Continue
+          then handleMessages res
+          else return exitCode
+    handleMessage :: String -> PEnv (Env IO) (Status)
     handleMessage str =
         case IRC.decode str of
             Just msg -> do
                 liftIO . debugM "Hsbot.Reader" $ "<-- " ++ show msg
                 processPeerCommand msg
-            Nothing -> return ()
+            Nothing -> return (Continue)
     readThis :: Handle -> Maybe (TLSCtx Handle) -> IO String
     readThis _ (Just ctx) = fmap L.toString (recvData ctx)
     readThis h Nothing = hGetLine h >>= \s -> return $ s ++ "\n"

@@ -15,18 +15,20 @@ import Text.Parsec
 import Ircd.Types
 import Ircd.Utils
 
-processPeerCommand :: IRC.Message -> PEnv (Env IO) ()
+processPeerCommand :: IRC.Message -> PEnv (Env IO) (Status)
 processPeerCommand msg = do
     penv <- ask
     pstateMV <- asks peerState
     pstate <- liftIO (readMVar pstateMV)
     let status = peerStatus pstate
     case IRC.msg_command msg of
-        "PASS" -> if status == UNREGISTERED
-                    then (case IRC.msg_params msg of
-                            pass:_ -> liftIO $ modifyMVar_ pstateMV (\st -> return st { peerPass = Just pass })
-                            [] -> replyStr "461" ["PASS", "Not enough parameters"])
-                    else replyStr "462" ["PASS", "You may not reregister"]
+        "PASS" -> do
+            if status == UNREGISTERED
+              then (case IRC.msg_params msg of
+                pass:_ -> liftIO $ modifyMVar_ pstateMV (\st -> return st { peerPass = Just pass })
+                [] -> replyStr "461" ["PASS", "Not enough parameters"])
+              else replyStr "462" ["PASS", "You may not reregister"]
+            return Continue
         "NICK" -> do
             when (status == UNREGISTERED) $ liftIO $ modifyMVar_ pstateMV (\st -> return st { peerStatus = REGISTERING })
             case IRC.msg_params msg of
@@ -84,6 +86,7 @@ processPeerCommand msg = do
                         return ()
                     Left _ -> replyStr "432" ["NICK", nick ++ " :Erroneus nickname"]
                 [] -> replyStr "431" ["NICK", "No nickname given"]
+            return Continue
         "USER" -> do
             when (status == UNREGISTERED) $ liftIO $ modifyMVar_ pstateMV (\st -> return st { peerStatus = REGISTERING })
             case IRC.msg_params msg of
@@ -98,44 +101,47 @@ processPeerCommand msg = do
                       -- TODO : If the client is fully registered we add a message prefix and we forward to all servers
                       when (status == REGISTERING && peerNick pstate /= Nothing) $ liftIO $ modifyMVar_ pstateMV (\st -> return st { peerStatus = REGISTERED }))
                 _ -> replyStr "461" ["USER", "No enough parameters"]
-        "SERVER" -> liftIO $ errorM "Ircd.Command" $ "Command not implemented : " ++ IRC.msg_command msg
-        "OPER" -> liftIO $ errorM "Ircd.Command" $ "Command not implemented : " ++ IRC.msg_command msg
-        "QUIT" -> liftIO $ errorM "Ircd.Command" $ "Command not implemented : " ++ IRC.msg_command msg
-        "SQUIT" -> liftIO $ errorM "Ircd.Command" $ "Command not implemented : " ++ IRC.msg_command msg
-        "JOIN" -> liftIO $ errorM "Ircd.Command" $ "Command not implemented : " ++ IRC.msg_command msg
-        "PART" -> liftIO $ errorM "Ircd.Command" $ "Command not implemented : " ++ IRC.msg_command msg
-        "MODE" -> liftIO $ errorM "Ircd.Command" $ "Command not implemented : " ++ IRC.msg_command msg
-        "TOPIC" -> liftIO $ errorM "Ircd.Command" $ "Command not implemented : " ++ IRC.msg_command msg
-        "NAMES" -> liftIO $ errorM "Ircd.Command" $ "Command not implemented : " ++ IRC.msg_command msg
-        "LIST" -> liftIO $ errorM "Ircd.Command" $ "Command not implemented : " ++ IRC.msg_command msg
-        "INVITE" -> liftIO $ errorM "Ircd.Command" $ "Command not implemented : " ++ IRC.msg_command msg
-        "KICK" -> liftIO $ errorM "Ircd.Command" $ "Command not implemented : " ++ IRC.msg_command msg
-        "VERSION" -> liftIO $ errorM "Ircd.Command" $ "Command not implemented : " ++ IRC.msg_command msg
-        "STATS" -> liftIO $ errorM "Ircd.Command" $ "Command not implemented : " ++ IRC.msg_command msg
-        "LINKS" -> liftIO $ errorM "Ircd.Command" $ "Command not implemented : " ++ IRC.msg_command msg
-        "TIME" -> liftIO $ errorM "Ircd.Command" $ "Command not implemented : " ++ IRC.msg_command msg
-        "CONNECT" -> liftIO $ errorM "Ircd.Command" $ "Command not implemented : " ++ IRC.msg_command msg
-        "TRACE" -> liftIO $ errorM "Ircd.Command" $ "Command not implemented : " ++ IRC.msg_command msg
-        "ADMIN" -> liftIO $ errorM "Ircd.Command" $ "Command not implemented : " ++ IRC.msg_command msg
-        "INFO" -> liftIO $ errorM "Ircd.Command" $ "Command not implemented : " ++ IRC.msg_command msg
-        "PRIVMSG" -> liftIO $ errorM "Ircd.Command" $ "Command not implemented : " ++ IRC.msg_command msg
-        "NOTICE" -> liftIO $ errorM "Ircd.Command" $ "Command not implemented : " ++ IRC.msg_command msg
-        "WHO" -> liftIO $ errorM "Ircd.Command" $ "Command not implemented : " ++ IRC.msg_command msg
-        "WHOIS" -> liftIO $ errorM "Ircd.Command" $ "Command not implemented : " ++ IRC.msg_command msg
-        "WHOWAS" -> liftIO $ errorM "Ircd.Command" $ "Command not implemented : " ++ IRC.msg_command msg
-        "KILL" -> liftIO $ errorM "Ircd.Command" $ "Command not implemented : " ++ IRC.msg_command msg
-        "PING" -> liftIO $ errorM "Ircd.Command" $ "Command not implemented : " ++ IRC.msg_command msg
-        "PONG" -> liftIO $ errorM "Ircd.Command" $ "Command not implemented : " ++ IRC.msg_command msg
-        "ERROR" -> liftIO $ errorM "Ircd.Command" $ "Command not implemented : " ++ IRC.msg_command msg
-        "AWAY" -> liftIO $ errorM "Ircd.Command" $ "Command not implemented : " ++ IRC.msg_command msg
-        "REHASH" -> liftIO $ errorM "Ircd.Command" $ "Command not implemented : " ++ IRC.msg_command msg
-        "RESTART" -> liftIO $ errorM "Ircd.Command" $ "Command not implemented : " ++ IRC.msg_command msg
-        "SUMMON" -> liftIO $ errorM "Ircd.Command" $ "Command not implemented : " ++ IRC.msg_command msg
-        "USERS" -> liftIO $ errorM "Ircd.Command" $ "Command not implemented : " ++ IRC.msg_command msg
-        "WALLOPS" -> liftIO $ errorM "Ircd.Command" $ "Command not implemented : " ++ IRC.msg_command msg
-        "USERHOST" -> liftIO $ errorM "Ircd.Command" $ "Command not implemented : " ++ IRC.msg_command msg
-        "ISON" -> liftIO $ errorM "Ircd.Command" $ "Command not implemented : " ++ IRC.msg_command msg
-        _ -> liftIO $ errorM "Ircd.Command" $ "Invalid command in IRC message : " ++ IRC.msg_command msg
+            return Continue
+        "SERVER" -> notImplemented
+        "OPER" -> notImplemented
+        "QUIT" -> notImplemented
+        "SQUIT" -> notImplemented
+        "JOIN" -> notImplemented
+        "PART" -> notImplemented
+        "MODE" -> notImplemented
+        "TOPIC" -> notImplemented
+        "NAMES" -> notImplemented
+        "LIST" -> notImplemented
+        "INVITE" -> notImplemented
+        "KICK" -> notImplemented
+        "VERSION" -> notImplemented
+        "STATS" -> notImplemented
+        "LINKS" -> notImplemented
+        "TIME" -> notImplemented
+        "CONNECT" -> notImplemented
+        "TRACE" -> notImplemented
+        "ADMIN" -> notImplemented
+        "INFO" -> notImplemented
+        "PRIVMSG" -> notImplemented
+        "NOTICE" -> notImplemented
+        "WHO" -> notImplemented
+        "WHOIS" -> notImplemented
+        "WHOWAS" -> notImplemented
+        "KILL" -> notImplemented
+        "PING" -> notImplemented
+        "PONG" -> notImplemented
+        "ERROR" -> notImplemented
+        "AWAY" -> notImplemented
+        "REHASH" -> notImplemented
+        "RESTART" -> notImplemented
+        "SUMMON" -> notImplemented
+        "USERS" -> notImplemented
+        "WALLOPS" -> notImplemented
+        "USERHOST" -> notImplemented
+        "ISON" -> notImplemented
+        _ -> do
+            liftIO $ errorM "Ircd.Command" $ "Invalid command in IRC message : " ++ IRC.msg_command msg
+            return Continue
   where
     nickName = do
         n <- letter
@@ -143,6 +149,9 @@ processPeerCommand msg = do
         _ <- eof
         return $ n : ick
     nickElt = alphaNum <|> oneOf "-[]\\`^{}"
+    notImplemented = do
+        liftIO $ errorM "Ircd.Command" $ "Command not implemented : " ++ IRC.msg_command msg
+        return Continue
 
 replyStr :: IRC.Command -> [IRC.Parameter] -> PEnv (Env IO) ()
 replyStr cmd params = do
