@@ -41,6 +41,8 @@ processPeerCommand msg = do
                           else return 0
                         let msg' = IRC.Message (IRC.msg_prefix msg) "NICK" [nick', show (hopcount + 1) ]
                         -- Then we try to set the nickname in the server state
+                        -- TODO: we should only do that this way for clients.
+                        --       Servers require a different approach cause those are peers that hide multiple nicks!!!
                         success <- lift (asks envIrcdState) >>= liftIO . flip modifyMVar (\st -> case M.lookup nick' (ircdNicks st) of
                             Just _ -> return (st, False)
                             Nothing ->
@@ -70,6 +72,9 @@ processPeerCommand msg = do
                                              else peers
                               -- TODO : check this, maybe it's not ok to send msg with hopcount to non server peers
                               liftIO $ mapM_ (`sendTo` msg') peers')
+                              -- TODO : if we already have received a USER command from this directly connected client
+                              -- we need to relay this USER the other servers now, and set this client as registered
+                              -- in ircd's state
                           else if peerIsServer pstate
                             then (replyStr "436" ["NICK", nick' ++ " :Nickname collision KILL"]
                                 -- TODO send KILLs for both the old nickname and the new one
