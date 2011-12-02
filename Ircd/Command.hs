@@ -65,16 +65,9 @@ processPeerCommand msg = do
                         if success
                           then (do
                               liftIO $ modifyMVar_ pstateMV (\st -> return st { peerNick = Just nick' })
-                              let chans = peerChans pstate
-                              stMVar <- lift (asks envIrcdState)
-                              peers <- liftIO $ withMVar stMVar
-                                  (\st -> let nicks = L.nub . concat $ mapMaybe (flip M.lookup $ ircdChans st) chans
-                                          in return $ mapMaybe (flip M.lookup $ ircdNicks st) nicks)
-                              let peers' = if peerIsServer pstate
-                                             then filter (/= penv) peers
-                                             else peers
+                              peers <- getPeersOnMyChans pstate
                               -- TODO : check this, maybe it's not ok to send msg with hopcount to non server peers
-                              liftIO $ mapM_ (`sendTo` msg') peers'
+                              liftIO $ mapM_ (`sendTo` msg') peers
                               -- TODO : if we already have received a USER command from this directly connected client
                               -- we need to relay this USER the other servers now
                               when (status == REGISTERING && peerUser pstate /= Nothing) $ liftIO $ modifyMVar_ pstateMV (\st -> return st { peerStatus = REGISTERED }))
@@ -149,6 +142,17 @@ processPeerCommand msg = do
         _ <- eof
         return $ n : ick
     nickElt = alphaNum <|> oneOf "-[]\\`^{}"
+    getPeersOnMyChans :: PeerState -> PEnv (Env IO) [PeerEnv]
+    getPeersOnMyChans pstate = do
+        let chans = peerChans pstate
+        stMVar <- lift (asks envIrcdState)
+        penv <- ask
+        peers <- liftIO $ withMVar stMVar
+            (\st -> let nicks = L.nub . concat $ mapMaybe (flip M.lookup $ ircdChans st) chans
+                    in return $ mapMaybe (flip M.lookup $ ircdNicks st) nicks)
+        return $ if peerIsServer pstate
+            then filter (/= penv) peers
+            else peers
     notImplemented = do
         liftIO $ errorM "Ircd.Command" $ "Command not implemented : " ++ IRC.msg_command msg
         return Continue
