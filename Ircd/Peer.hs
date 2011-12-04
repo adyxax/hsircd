@@ -89,7 +89,6 @@ addIrcdPeer penv = asks envIrcdState >>= liftIO . flip modifyMVar_ (\state -> re
 delIrcdPeer :: PeerEnv -> Env IO ()
 delIrcdPeer penv = do
     pstate <- liftIO . takeMVar $ peerState penv
-    -- TODO : tell all people in chans who knows this nick about this peer quiting
     asks envIrcdState >>= liftIO . flip modifyMVar_ (\state ->
         let pnick = fromMaybe "" $ peerNick pstate
             pchans = peerChans pstate

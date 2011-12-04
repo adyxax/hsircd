@@ -97,7 +97,13 @@ processPeerCommand msg = do
             return Continue
         "SERVER" -> notImplemented
         "OPER" -> notImplemented
-        "QUIT" -> notImplemented
+        "QUIT" -> do
+            let msg' = if peerIsServer pstate then msg
+                         else IRC.Message (Just $ getPrefix pstate) (IRC.msg_command msg) $ if (IRC.msg_params msg == []) then [ fromMaybe "" $ peerNick pstate ]
+                                                                                               else IRC.msg_params msg
+            -- TODO : cannot test until JOIN is implemented
+            getPeersOnMyChans pstate >>= liftIO . mapM_ (`sendTo` msg')
+            return . Exit . last $ IRC.msg_params msg'
         "SQUIT" -> notImplemented
         "JOIN" -> notImplemented
         "PART" -> notImplemented
@@ -153,6 +159,9 @@ processPeerCommand msg = do
         return $ if peerIsServer pstate
             then filter (/= penv) peers
             else peers
+    getPrefix :: PeerState -> IRC.Prefix
+    getPrefix pstate = let (login, hostname, _, _) = fromMaybe ("", "", "", "") $ peerUser pstate
+        in IRC.NickName (fromMaybe "" $ peerNick pstate) (Just login) (Just hostname)
     notImplemented = do
         liftIO $ errorM "Ircd.Command" $ "Command not implemented : " ++ IRC.msg_command msg
         return Continue
