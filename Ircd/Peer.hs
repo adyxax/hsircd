@@ -43,9 +43,7 @@ peerCore buff = do
     peerEnv <- ask
     (msgs, tcpbuff) <- liftIO $ botReader peerEnv buff `catch` \(ioe :: IOException) -> return (["QUIT :" ++ show ioe], "")
     exitCode <- handleMessages msgs
-    if exitCode == Continue
-      then peerCore tcpbuff
-      else return ()
+    when (exitCode == Continue) $ peerCore tcpbuff
   where
     botReader :: PeerEnv -> String -> IO ([String], String)
     botReader peerEnv tcpbuff = do
@@ -65,20 +63,20 @@ peerCore buff = do
         mess <- many1 $ noneOf "\r\n"
         end <- string "\r\n" <|> string "\r" <|> string "\n"
         return $ mess ++ end
-    handleMessages :: [String] -> PEnv (Env IO) (Status)
+    handleMessages :: [String] -> PEnv (Env IO) Status
     handleMessages [] = return Continue
     handleMessages (x:res) = do
         exitCode <- handleMessage x
         if exitCode == Continue
           then handleMessages res
           else return exitCode
-    handleMessage :: String -> PEnv (Env IO) (Status)
+    handleMessage :: String -> PEnv (Env IO) Status
     handleMessage str =
         case IRC.decode str of
             Just msg -> do
                 liftIO . debugM "Hsbot.Reader" $ "<-- " ++ show msg
                 processPeerCommand msg
-            Nothing -> return (Continue)
+            Nothing -> return Continue
     readThis :: Handle -> Maybe (TLSCtx Handle) -> IO String
     readThis _ (Just ctx) = fmap L.toString (recvData ctx)
     readThis h Nothing = hGetLine h >>= \s -> return $ s ++ "\n"

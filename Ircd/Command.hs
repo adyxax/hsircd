@@ -15,7 +15,7 @@ import Text.Parsec
 import Ircd.Types
 import Ircd.Utils
 
-processPeerCommand :: IRC.Message -> PEnv (Env IO) (Status)
+processPeerCommand :: IRC.Message -> PEnv (Env IO) Status
 processPeerCommand msg = do
     penv <- ask
     pstateMV <- asks peerState
@@ -70,11 +70,9 @@ processPeerCommand msg = do
                               liftIO $ mapM_ (`sendTo` msg') peers
                               -- TODO : if we already have received a USER command from this directly connected client
                               -- we need to relay this USER the other servers now
-                              when (status == REGISTERING && peerUser pstate /= Nothing) $ liftIO $ modifyMVar_ pstateMV (\st -> return st { peerStatus = REGISTERED }))
+                              when (status == REGISTERING && isJust (peerUser pstate)) $ liftIO $ modifyMVar_ pstateMV (\st -> return st { peerStatus = REGISTERED }))
                           else if peerIsServer pstate
-                            then (replyStr "436" ["NICK", nick' ++ " :Nickname collision KILL"]
-                                -- TODO send KILLs for both the old nickname and the new one
-                                )
+                            then replyStr "436" ["NICK", nick' ++ " :Nickname collision KILL"] -- TODO send KILLs for both the old nickname and the new one
                             else replyStr "433" ["NICK", nick' ++ " :Nickname is already in use"]
                         return ()
                     Left _ -> replyStr "432" ["NICK", nick ++ " :Erroneus nickname"]
@@ -83,23 +81,22 @@ processPeerCommand msg = do
         "USER" -> do
             when (status == UNREGISTERED) $ liftIO $ modifyMVar_ pstateMV (\st -> return st { peerStatus = REGISTERING })
             case IRC.msg_params msg of
-                login:_:_:realname:_ -> if peerIsServer pstate
-                  then return () -- TODO check for nick in prefix too, as for hostname and servername
-                  else  if (status == REGISTERED)
-                    then replyStr "462" ["USER", "You may not reregister"]
-                    else (do
+                login:_:_:realname:_
+                  | peerIsServer pstate -> notImplemented >>= \_ -> return () -- TODO check for nick in prefix too, as for hostname and servername
+                  | status == REGISTERED -> replyStr "462" ["USER", "You may not reregister"]
+                  | otherwise -> do
                       let hostname = "graou" --TODO liftIO . getNameInfo []
                       servername <- fmap configServerName (lift $ asks envConfig)
-                      liftIO $ modifyMVar_ pstateMV (\st -> return st { peerUser = Just $ (login, hostname, servername, realname) })
+                      liftIO $ modifyMVar_ pstateMV (\st -> return st { peerUser = Just (login, hostname, servername, realname) })
                       -- TODO : If the client is fully registered we add a message prefix and we forward to all servers
-                      when (status == REGISTERING && peerNick pstate /= Nothing) $ liftIO $ modifyMVar_ pstateMV (\st -> return st { peerStatus = REGISTERED }))
+                      when (status == REGISTERING && isJust (peerNick pstate)) $ liftIO $ modifyMVar_ pstateMV (\st -> return st { peerStatus = REGISTERED })
                 _ -> replyStr "461" ["USER", "No enough parameters"]
             return Continue
         "SERVER" -> notImplemented
         "OPER" -> notImplemented
         "QUIT" -> do
             let msg' = if peerIsServer pstate then msg
-                         else IRC.Message (Just $ getPrefix pstate) (IRC.msg_command msg) $ if (IRC.msg_params msg == []) then [ fromMaybe "" $ peerNick pstate ]
+                         else IRC.Message (Just $ getPrefix pstate) (IRC.msg_command msg) $ if IRC.msg_params msg == [] then [ fromMaybe "" $ peerNick pstate ]
                                                                                                else IRC.msg_params msg
             -- TODO : cannot test until JOIN is implemented
             getPeersOnMyChans pstate >>= liftIO . mapM_ (`sendTo` msg')
