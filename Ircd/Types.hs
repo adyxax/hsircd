@@ -78,6 +78,7 @@ instance Show PeerEnv where
 data IrcdState = IrcdState
     { ircdPeers :: [PeerEnv]
     , ircdNicks :: M.Map String PeerEnv
+    , ircdNicksHistory :: M.Map String PeerEnv
     , ircdChans :: M.Map String [String]
     } deriving (Show)
 

@@ -91,10 +91,12 @@ delIrcdPeer penv = do
         let pnick = fromMaybe "" $ peerNick pstate
             pchans = peerChans pstate
             nicks = ircdNicks state
+            nicksH = ircdNicksHistory state
             peers = ircdPeers state
             chans = ircdChans state
         in return state { ircdPeers = delete penv peers
                         , ircdNicks = M.delete pnick nicks
+                        , ircdNicksHistory = M.filter (\p -> p /= penv) nicksH
                         , ircdChans = foldl (\acc chan -> M.insert chan
                                                                    (delete pnick . fromMaybe [] $ M.lookup chan acc)
                                                                    acc)

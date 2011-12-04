@@ -51,15 +51,18 @@ processPeerCommand msg = do
                             Nothing ->
                                 let pchans = peerChans pstate
                                     nicks = ircdNicks st
+                                    nicksH = ircdNicksHistory st
                                     chans = ircdChans st
                                     st' = case peerNick pstate of
                                         Just oldnick ->
                                             st { ircdNicks = M.insert nick' penv $ M.delete oldnick nicks
+                                               , ircdNicksHistory = M.insert nick' penv nicksH
                                                , ircdChans = foldl (\acc chan -> M.insert chan
                                                                                           (nick' : L.delete oldnick (fromMaybe [] $ M.lookup chan acc))
                                                                                           acc)
                                                                    chans pchans }
-                                        Nothing -> st { ircdNicks = M.insert nick' penv nicks }
+                                        Nothing -> st { ircdNicks = M.insert nick' penv nicks
+                                                      , ircdNicksHistory = M.insert nick' penv nicksH }
                                 in return (st', True))
                         -- Finally we advertise to clients and servers | WARNING : cannot test until JOIN is implemented
                         if success

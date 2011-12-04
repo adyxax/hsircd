@@ -21,6 +21,7 @@ defaultIrcdState :: IrcdState
 defaultIrcdState = IrcdState
     { ircdPeers = []
     , ircdNicks = M.empty
+    , ircdNicksHistory = M.empty
     , ircdChans = M.empty }
 
 initIrcd :: Config -> IO IrcdEnv
