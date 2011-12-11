@@ -22,6 +22,7 @@ processPeerCommand msg = do
     pstate <- liftIO (readMVar pstateMV)
     let status = peerStatus pstate
     case IRC.msg_command msg of
+        -- Connection and registration messages
         "PASS" -> do
             if status == UNREGISTERED
               then (case IRC.msg_params msg of
@@ -95,8 +96,8 @@ processPeerCommand msg = do
                       when (status == REGISTERING && isJust (peerNick pstate)) $ liftIO $ modifyMVar_ pstateMV (\st -> return st { peerStatus = REGISTERED })
                 _ -> replyStr "461" ["USER", "No enough parameters"]
             return Continue
-        "SERVER" -> notImplemented
-        "OPER" -> notImplemented
+        "SERVER" -> do notImplemented; return Continue
+        "OPER" -> do notImplemented; return Continue
         "QUIT" -> do
             let msg' = if peerIsServer pstate then msg
                          else IRC.Message (Just $ getPrefix pstate) (IRC.msg_command msg) $ if IRC.msg_params msg == [] then [ fromMaybe "" $ peerNick pstate ]
@@ -104,43 +105,52 @@ processPeerCommand msg = do
             -- TODO : cannot test until JOIN is implemented
             getPeersOnMyChans pstate >>= liftIO . mapM_ (`sendTo` msg')
             return . Exit . last $ IRC.msg_params msg'
-        "SQUIT" -> notImplemented
-        "JOIN" -> notImplemented
-        "PART" -> notImplemented
-        "MODE" -> notImplemented
-        "TOPIC" -> notImplemented
-        "NAMES" -> notImplemented
-        "LIST" -> notImplemented
-        "INVITE" -> notImplemented
-        "KICK" -> notImplemented
-        "VERSION" -> notImplemented
-        "STATS" -> notImplemented
-        "LINKS" -> notImplemented
-        "TIME" -> notImplemented
-        "CONNECT" -> notImplemented
-        "TRACE" -> notImplemented
-        "ADMIN" -> notImplemented
-        "INFO" -> notImplemented
-        "PRIVMSG" -> notImplemented
-        "NOTICE" -> notImplemented
-        "WHO" -> notImplemented
-        "WHOIS" -> notImplemented
-        "WHOWAS" -> notImplemented
-        "KILL" -> notImplemented
-        "PING" -> notImplemented
-        "PONG" -> notImplemented
-        "ERROR" -> notImplemented
-        "AWAY" -> notImplemented
-        "REHASH" -> notImplemented
-        "RESTART" -> notImplemented
-        "SUMMON" -> notImplemented
-        "USERS" -> notImplemented
-        "WALLOPS" -> notImplemented
-        "USERHOST" -> notImplemented
-        "ISON" -> notImplemented
-        _ -> do
-            liftIO $ errorM "Ircd.Command" $ "Invalid command in IRC message : " ++ IRC.msg_command msg
-            return Continue
+        "SQUIT" -> do notImplemented; return Continue
+        -- Messages available while registered
+        _ | status /= REGISTERED -> do replyStr "451" ["You have not registered"]; return Continue
+          | otherwise -> do
+              case IRC.msg_command msg of
+                  -- Channel operations
+                  "JOIN" -> notImplemented
+                  "PART" -> notImplemented
+                  "MODE" -> notImplemented
+                  "TOPIC" -> notImplemented
+                  "NAMES" -> notImplemented
+                  "LIST" -> notImplemented
+                  "INVITE" -> notImplemented
+                  "KICK" -> notImplemented
+                  -- Server queries and commands
+                  "VERSION" -> notImplemented
+                  "STATS" -> notImplemented
+                  "LINKS" -> notImplemented
+                  "TIME" -> notImplemented
+                  "CONNECT" -> notImplemented
+                  "TRACE" -> notImplemented
+                  "ADMIN" -> notImplemented
+                  "INFO" -> notImplemented
+                  -- Sending messages
+                  "PRIVMSG" -> notImplemented
+                  "NOTICE" -> notImplemented
+                  -- User based queries
+                  "WHO" -> notImplemented
+                  "WHOIS" -> notImplemented
+                  "WHOWAS" -> notImplemented
+                  -- Miscellaneous messages
+                  "KILL" -> notImplemented
+                  "PING" -> notImplemented
+                  "PONG" -> notImplemented
+                  "ERROR" -> notImplemented
+                  -- Optional messages
+                  "AWAY" -> notImplemented
+                  "REHASH" -> notImplemented
+                  "RESTART" -> notImplemented
+                  "SUMMON" -> notImplemented
+                  "USERS" -> notImplemented
+                  "WALLOPS" -> notImplemented
+                  "USERHOST" -> notImplemented
+                  "ISON" -> notImplemented
+                  _ -> liftIO $ errorM "Ircd.Command" $ "Invalid command in IRC message : " ++ IRC.msg_command msg
+              return Continue
   where
     nickName = do
         n <- letter
@@ -162,9 +172,7 @@ processPeerCommand msg = do
     getPrefix :: PeerState -> IRC.Prefix
     getPrefix pstate = let (login, hostname, _, _) = fromMaybe ("", "", "", "") $ peerUser pstate
         in IRC.NickName (fromMaybe "" $ peerNick pstate) (Just login) (Just hostname)
-    notImplemented = do
-        liftIO $ errorM "Ircd.Command" $ "Command not implemented : " ++ IRC.msg_command msg
-        return Continue
+    notImplemented = liftIO $ errorM "Ircd.Command" $ "Command not implemented : " ++ IRC.msg_command msg
 
 replyStr :: IRC.Command -> [IRC.Parameter] -> PEnv (Env IO) ()
 replyStr cmd params = do
