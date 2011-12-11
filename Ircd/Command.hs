@@ -94,7 +94,7 @@ processPeerCommand msg = do
                       liftIO $ modifyMVar_ pstateMV (\st -> return st { peerUser = Just (login, hostname, servername, realname) })
                       -- TODO : If the client is fully registered we add a message prefix and we forward to all servers
                       when (status == REGISTERING && isJust (peerNick pstate)) $ liftIO $ modifyMVar_ pstateMV (\st -> return st { peerStatus = REGISTERED })
-                _ -> replyStr "461" ["USER", "No enough parameters"]
+                _ -> replyStr "461" ["USER", "Not enough parameters"]
             return Continue
         "SERVER" -> do notImplemented; return Continue
         "OPER" -> do notImplemented; return Continue

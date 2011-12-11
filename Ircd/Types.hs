@@ -79,7 +79,7 @@ data IrcdState = IrcdState
     { ircdPeers :: [PeerEnv]
     , ircdNicks :: M.Map String PeerEnv
     , ircdNicksHistory :: M.Map String PeerEnv
-    , ircdChans :: M.Map String [String]
+    , ircdChans :: M.Map String [String] -- Map Channel [Nicks]
     } deriving (Show)
 
 -- Peer state
