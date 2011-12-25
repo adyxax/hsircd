@@ -41,7 +41,7 @@ handlePeerRequests peerEnv = do
 peerCore :: String -> PEnv (Env IO) ()
 peerCore buff = do
     peerEnv <- ask
-    (msgs, tcpbuff) <- liftIO $ botReader peerEnv buff `catch` \(ioe :: IOException) -> return (["QUIT :" ++ show ioe], "")
+    (msgs, tcpbuff) <- liftIO (botReader peerEnv buff `catch` \(ioe :: IOException) -> return (["QUIT :" ++ show ioe ++ "\r\n"], ""))
     exitCode <- handleMessages msgs
     when (exitCode == Continue) $ peerCore tcpbuff
   where

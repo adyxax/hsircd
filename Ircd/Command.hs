@@ -3,12 +3,14 @@ module Ircd.Command
     ) where
 
 import Control.Concurrent.MVar
+import Control.Exception (IOException, catch)
 import Control.Monad.Reader
 import qualified Data.List as L
 import qualified Data.Map as M
 import Data.Maybe
 import qualified Network.IRC as IRC
 import qualified Network.BSD ()
+import Prelude hiding (catch)
 import System.Log.Logger
 import Text.Parsec
 
@@ -228,6 +230,6 @@ sendTo :: PeerEnv -> IRC.Message -> IO ()
 sendTo penv msg = do
     let connhdl  = peerHandle penv
         tlsCtx   = peerTLSCtx penv
-    liftIO . sendStr connhdl tlsCtx $ IRC.encode msg
+    liftIO $ (sendStr connhdl tlsCtx $ IRC.encode msg) `catch` \(_ :: IOException) -> return ()
     liftIO . debugM "Ircd.peer" $ "--> " ++ show msg
 
