@@ -100,7 +100,7 @@ processPeerCommand msg = do
         "OPER" -> do notImplemented; return Continue
         "QUIT" -> do
             let msg' = if peerIsServer pstate then msg
-                         else IRC.Message (Just $ getPrefix pstate) (IRC.msg_command msg) $ if IRC.msg_params msg == [] then [ fromMaybe "" $ peerNick pstate ]
+                         else IRC.Message (Just $ getPrefix pstate) (IRC.msg_command msg) $ if IRC.msg_params msg == [] then [ getNick pstate ]
                                                                                                else IRC.msg_params msg
             -- TODO : cannot test until JOIN is implemented
             getPeersOnMyChans pstate >>= liftIO . mapM_ (`sendTo` msg')
@@ -111,7 +111,17 @@ processPeerCommand msg = do
           | otherwise -> do
               case IRC.msg_command msg of
                   -- Channel operations
-                  "JOIN" -> notImplemented
+                  "JOIN" -> case IRC.msg_params msg of
+                      [] -> replyStr "461" ["JOIN", "Not enough parameters"]
+                      channelParams:lastMsgParams -> case parse joinChannelParams "" channelParams of
+                          Right chanList -> do
+                              let keyList = case lastMsgParams of
+                                      [] -> []
+                                      keyParams:_ -> case parse joinKeyParams "" keyParams of
+                                          Right keyList' -> keyList'
+                                          Left _ -> []
+                              mapM_ (joinThatChan pstateMV pstate) . zip chanList $ keyList ++ repeat ""
+                          Left _ -> replyStr "403" ["JOIN", "No such channel"]
                   "PART" -> notImplemented
                   "MODE" -> notImplemented
                   "TOPIC" -> notImplemented
@@ -157,6 +167,20 @@ processPeerCommand msg = do
         ick <- try (count 8 nickElt) <|> option [] (many1 nickElt)
         _ <- eof
         return $ n : ick
+    joinChannelParams = do
+        firstChan <- channelName
+        chanList <- option [] $ many1 (char ',' >> channelName)
+        return $ firstChan : chanList
+    joinKeyParams = do
+        firstKey <- channelKey
+        keysList <- option [] $ many1 (char ',' >> channelKey)
+        return $ firstKey : keysList
+    channelName = do
+        p <- oneOf "#&"
+        t <- (try (count 200 chanElt) <|> option [] (many1 chanElt))
+        return $ p : t
+    channelKey = option [] (many1 nickElt)
+    chanElt = noneOf " ,\a"
     nickElt = alphaNum <|> oneOf "-[]\\`^{}"
     getPeersOnMyChans :: PeerState -> PEnv (Env IO) [PeerEnv]
     getPeersOnMyChans pstate = do
@@ -169,9 +193,29 @@ processPeerCommand msg = do
         return $ if peerIsServer pstate
             then filter (/= penv) peers
             else peers
+    joinThatChan :: MVar PeerState -> PeerState -> (String, String) -> PEnv (Env IO) ()
+    joinThatChan pstateMV pstate (chan, _) = do   -- second param is the channel key provided
+        stMVar <- lift (asks envIrcdState)
+        members <- liftIO $ modifyMVar stMVar
+            -- TODO : check channel mode invite-only, active bans on nick - username - hostname, is the key correct?
+            (\st -> do
+                let chans = ircdChans st
+                    members = fromMaybe [] $ M.lookup chan chans
+                    members' = getNick pstate : members
+                -- TODO relay JOIN msg to all members
+                return (st { ircdChans = M.insert chan members' chans }
+                       , members'))
+        liftIO $ modifyMVar_ pstateMV (\st -> return st { peerChans = chan : peerChans st })
+        -- TODO if successfull : RPL_TOPIC and properly handle multilines RPL_NAMREPLY
+        replyStr "351" [chan, "No topic is set"]
+        replyStr "353" [chan, formatNickListRpl members]
+        return ()
     getPrefix :: PeerState -> IRC.Prefix
     getPrefix pstate = let (login, hostname, _, _) = fromMaybe ("", "", "", "") $ peerUser pstate
-        in IRC.NickName (fromMaybe "" $ peerNick pstate) (Just login) (Just hostname)
+        in IRC.NickName (getNick pstate) (Just login) (Just hostname)
+    getNick :: PeerState -> String
+    getNick = fromMaybe "" . peerNick
+    formatNickListRpl nicks = unwords nicks -- TODO : handle modes
     notImplemented = liftIO $ errorM "Ircd.Command" $ "Command not implemented : " ++ IRC.msg_command msg
 
 replyStr :: IRC.Command -> [IRC.Parameter] -> PEnv (Env IO) ()
