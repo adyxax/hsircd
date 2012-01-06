@@ -155,7 +155,7 @@ processPeerCommand msg = do
         return $ firstKey : keysList
     channelName = do
         p <- oneOf "#&"
-        t <- (try (count 200 chanElt) <|> option [] (many1 chanElt))
+        t <- try (count 200 chanElt) <|> option [] (many1 chanElt)
         return $ p : t
     channelKey = option [] (many1 nickElt)
     chanElt = noneOf " ,\a"
@@ -166,8 +166,8 @@ processPeerCommand msg = do
         stMVar <- lift (asks envIrcdState)
         penv <- ask
         peers <- liftIO $ withMVar stMVar
-            (\st -> let nicks = L.nub . concat $ mapMaybe (flip M.lookup $ ircdChans st) chans
-                    in return $ mapMaybe (flip M.lookup $ ircdNicks st) nicks)
+            (\st -> let nicks = L.nub . concat $ mapMaybe (`M.lookup` ircdChans st) chans
+                    in return $ mapMaybe (`M.lookup` ircdNicks st) nicks)
         return $ if peerIsServer pstate
             then filter (/= penv) peers
             else peers
@@ -218,6 +218,6 @@ sendTo :: PeerEnv -> IRC.Message -> IO ()
 sendTo penv msg = do
     let connhdl  = peerHandle penv
         tlsCtx   = peerTLSCtx penv
-    liftIO $ (sendStr connhdl tlsCtx $ IRC.encode msg) `catch` \(_ :: IOException) -> return ()
+    liftIO $ sendStr connhdl tlsCtx (IRC.encode msg) `catch` \(_ :: IOException) -> return ()
     liftIO . debugM "Ircd.peer" $ "--> " ++ show msg
 
