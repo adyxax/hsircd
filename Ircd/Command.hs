@@ -180,7 +180,10 @@ processPeerCommand msg = do
                 let chans = ircdChans st
                     members = fromMaybe [] $ M.lookup chan chans
                     members' = getNick pstate : members
-                -- TODO relay JOIN msg to all members
+                    membersEnv = mapMaybe (`M.lookup` ircdNicks st) members
+                    msg' = IRC.Message (Just $ getPrefix pstate) (IRC.msg_command msg) (IRC.msg_params msg)
+                -- We notify all channel members of the newcomer
+                mapM_ (`sendTo` msg') membersEnv
                 return (st { ircdChans = M.insert chan members' chans }
                        , members'))
         liftIO $ modifyMVar_ pstateMV (\st -> return st { peerChans = chan : peerChans st })
