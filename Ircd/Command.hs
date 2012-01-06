@@ -14,6 +14,7 @@ import Prelude hiding (catch)
 import System.Log.Logger
 import Text.Parsec
 
+import Ircd.Server
 import Ircd.Types
 import Ircd.Utils
 
@@ -37,43 +38,19 @@ processPeerCommand msg = do
             case IRC.msg_params msg of
                 nick:stuff -> case parse nickName "" nick of
                     Right nick' -> do
-                        -- If we got a valid nickname, we parse for the optional hopcount
-                        hopcount <- if peerIsServer pstate
-                          then case stuff of
-                              hopC:_ -> case reads hopC :: [(Int, String)] of
-                                  (hop,_):_ -> return hop
-                                  _ -> do liftIO . errorM "Ircd.Peer" $ "Bogus server peer " ++ show (peerClientAddr penv) ++ " :couldn't parse hopcount from server nick message : " ++ show stuff ; return 0
-                              _ -> do liftIO . errorM "Ircd.Peer" $ "Bogus server peer " ++ show (peerClientAddr penv) ++ " :no hopcount provided" ; return 0
-                          else return 0
-                        let msg' = IRC.Message (IRC.msg_prefix msg) "NICK" [nick', show (hopcount + 1) ]
-                        -- Then we try to set the nickname in the server state
-                        -- TODO: we should only do that this way for clients.
-                        --       Servers require a different approach cause those are peers that hide multiple nicks!!!
-                        success <- lift (asks envIrcdState) >>= liftIO . flip modifyMVar (\st -> case M.lookup nick' (ircdNicks st) of
-                            Just _ -> return (st, False)
-                            Nothing ->
-                                let pchans = peerChans pstate
-                                    nicks = ircdNicks st
-                                    nicksH = ircdNicksHistory st
-                                    chans = ircdChans st
-                                    st' = case peerNick pstate of
-                                        Just oldnick ->
-                                            st { ircdNicks = M.insert nick' penv $ M.delete oldnick nicks
-                                               , ircdNicksHistory = M.insert nick' penv nicksH
-                                               , ircdChans = foldl (\acc chan -> M.insert chan
-                                                                                          (nick' : L.delete oldnick (fromMaybe [] $ M.lookup chan acc))
-                                                                                          acc)
-                                                                   chans pchans }
-                                        Nothing -> st { ircdNicks = M.insert nick' penv nicks
-                                                      , ircdNicksHistory = M.insert nick' penv nicksH }
-                                in return (st', True))
-                        -- Finally we advertise to clients and servers | WARNING : cannot test until JOIN is implemented
+                        -- If we got a valid nickname we try to set it in the server
+                        success <- lift $ setNick penv pstate nick'
+                        -- then we parse for the optional hopcount and build the msg we will relay to other peers
+                        let hopcount = getHopcount pstate stuff
+                            msg' = IRC.Message (IRC.msg_prefix msg) "NICK" [nick', show (hopcount + 1) ]
+                        -- Finally we advertise to clients and servers
                         if success
                           then (do
+                              -- We got the nick, so we update our peer state
                               liftIO $ modifyMVar_ pstateMV (\st -> return st { peerNick = Just nick' })
-                              peers <- getPeersOnMyChans pstate
+                              -- We get the list of peers on our chans so we can notify them of the nick change
                               -- TODO : check this, maybe it's not ok to send msg with hopcount to non server peers
-                              liftIO $ mapM_ (`sendTo` msg') peers
+                              getPeersOnMyChans pstate >>= liftIO . mapM_ (`sendTo` msg')
                               -- TODO : if we already have received a USER command from this directly connected client
                               -- we need to relay this USER the other servers now
                               when (status == REGISTERING && isJust (peerUser pstate)) $ liftIO $ modifyMVar_ pstateMV (\st -> return st { peerStatus = REGISTERED }))
@@ -104,7 +81,6 @@ processPeerCommand msg = do
             let msg' = if peerIsServer pstate then msg
                          else IRC.Message (Just $ getPrefix pstate) (IRC.msg_command msg) $ if IRC.msg_params msg == [] then [ getNick pstate ]
                                                                                                else IRC.msg_params msg
-            -- TODO : cannot test until JOIN is implemented
             getPeersOnMyChans pstate >>= liftIO . mapM_ (`sendTo` msg')
             return . Exit . last $ IRC.msg_params msg'
         "SQUIT" -> do notImplemented; return Continue
@@ -217,7 +193,16 @@ processPeerCommand msg = do
         in IRC.NickName (getNick pstate) (Just login) (Just hostname)
     getNick :: PeerState -> String
     getNick = fromMaybe "" . peerNick
-    formatNickListRpl nicks = unwords nicks -- TODO : handle modes
+    getHopcount :: PeerState -> [IRC.Parameter] -> Int
+    getHopcount pstate params
+      | peerIsServer pstate = case params of
+          hopC:_ -> case reads hopC :: [(Int, String)] of
+              (hop,_):_ -> hop
+              _ -> 0
+          _ -> 0
+      | otherwise = 0
+
+    formatNickListRpl = unwords -- TODO : handle modes and multilines
     notImplemented = liftIO $ errorM "Ircd.Command" $ "Command not implemented : " ++ IRC.msg_command msg
 
 replyStr :: IRC.Command -> [IRC.Parameter] -> PEnv (Env IO) ()
