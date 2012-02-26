@@ -78,7 +78,7 @@ peerCore buff = do
                 processPeerCommand msg
             Nothing -> return Continue
     readThis :: Handle -> Maybe (TLSCtx Handle) -> IO String
-    readThis _ (Just ctx) = fmap L.toString (recvData ctx)
+    readThis _ (Just ctx) = fmap L.toString (recvData' ctx)
     readThis h Nothing = hGetLine h >>= \s -> return $ s ++ "\n"
 
 addIrcdPeer :: PeerEnv -> Env IO ()
